@@ -1,2 +1,7 @@
 node_modules/
+<<<<<<< HEAD
 .env
+=======
+.env
+npm-debug.log*
+>>>>>>> 7f4e62c (Initial backend setup with Socket.IO room management)
