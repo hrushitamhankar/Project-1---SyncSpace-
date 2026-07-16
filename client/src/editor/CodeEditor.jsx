@@ -22,6 +22,8 @@ function CodeEditor() {
   const [connectionStatus, setConnectionStatus] =
     useState("connecting");
 
+  const [language, setLanguage] = useState("javascript");
+
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
     if (bindingRef.current) {
@@ -35,10 +37,7 @@ function CodeEditor() {
       return;
     }
 
-    /*
-     * Important Windows fix:
-     * Force Monaco and Yjs to use the same line-ending format.
-     */
+    // Force Monaco and Yjs to use the same line-ending format.
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
 
     const yDocument = new Y.Doc();
@@ -97,10 +96,28 @@ function CodeEditor() {
         Yjs: {connectionStatus}
       </div>
 
+      <div className="editor-toolbar">
+        <label htmlFor="language-select">Language:</label>
+
+        <select
+          id="language-select"
+          value={language}
+          onChange={(event) => setLanguage(event.target.value)}
+        >
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="cpp">C++</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+        </select>
+      </div>
+
       <Editor
         height="100%"
         path="file:///syncspace/main.js"
-        defaultLanguage="javascript"
+        language={language}
         defaultValue=""
         theme="vs-dark"
         onMount={handleEditorMount}
