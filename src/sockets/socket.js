@@ -5,33 +5,71 @@ import {
     removeSocketFromAllRooms
 } from "./roomManager.js";
 
+/**
+ * Initialize all Socket.IO event handlers.
+ *
+ * @param {import("socket.io").Server} io
+ */
 export default function initializeSocket(io) {
 
     io.on("connection", (socket) => {
 
-        console.log(`Connected: ${socket.id}`);
+        console.log(`[CONNECT] ${socket.id}`);
 
-        // Welcome event
+        /**
+         * Welcome event sent immediately after connection.
+         */
         socket.emit("welcome", {
             message: "Connected to SyncSpace"
         });
 
-        // Join Room
+        /**
+         * Handle client joining a collaborative room.
+         */
         socket.on("joinRoom", (roomId) => {
+
+            // Validate room ID
+            if (
+                typeof roomId !== "string" ||
+                roomId.trim().length === 0
+            ) {
+
+                socket.emit("room-error", {
+                    message: "Invalid room ID"
+                });
+
+                return;
+            }
+
+            roomId = roomId.trim();
+
+            // Prevent duplicate joins
+            const members = getRoomMembers(roomId);
+
+            if (members.includes(socket.id)) {
+
+                socket.emit("room-error", {
+                    message: "Already joined this room"
+                });
+
+                return;
+            }
 
             socket.join(roomId);
 
             joinRoom(roomId, socket.id);
 
-            console.log(`${socket.id} joined room ${roomId}`);
-            console.log(`Room ${roomId}: ${getRoomMembers(roomId).length} member(s)`);
+            console.log(`[JOIN] ${socket.id} -> ${roomId}`);
+            console.log(
+                `[ROOM] ${roomId}: ${getRoomMembers(roomId).length} member(s)`
+            );
 
-            // Notify everyone except the new user
+            // Notify other members
             socket.to(roomId).emit("user-joined", {
                 socketId: socket.id
             });
 
-            // Send current room members to the joining user
+            // Send updated member list
             socket.emit("room-members", {
                 roomId,
                 members: getRoomMembers(roomId)
@@ -39,14 +77,30 @@ export default function initializeSocket(io) {
 
         });
 
-        // Leave Room
+        /**
+         * Handle client leaving a collaborative room.
+         */
         socket.on("leaveRoom", (roomId) => {
+
+            if (
+                typeof roomId !== "string" ||
+                roomId.trim().length === 0
+            ) {
+
+                socket.emit("room-error", {
+                    message: "Invalid room ID"
+                });
+
+                return;
+            }
+
+            roomId = roomId.trim();
 
             socket.leave(roomId);
 
             leaveRoom(roomId, socket.id);
 
-            console.log(`${socket.id} left room ${roomId}`);
+            console.log(`[LEAVE] ${socket.id} -> ${roomId}`);
 
             socket.to(roomId).emit("user-left", {
                 socketId: socket.id
@@ -54,10 +108,12 @@ export default function initializeSocket(io) {
 
         });
 
-        // Disconnect
+        /**
+         * Cleanup when client disconnects unexpectedly.
+         */
         socket.on("disconnect", () => {
 
-            console.log(`Disconnected: ${socket.id}`);
+            console.log(`[DISCONNECT] ${socket.id}`);
 
             const leftRooms = removeSocketFromAllRooms(socket.id);
 
@@ -67,7 +123,9 @@ export default function initializeSocket(io) {
                     socketId: socket.id
                 });
 
-                console.log(`Removed ${socket.id} from ${roomId}`);
+                console.log(
+                    `[CLEANUP] Removed ${socket.id} from ${roomId}`
+                );
 
             });
 
