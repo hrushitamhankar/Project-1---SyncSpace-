@@ -1,12 +1,25 @@
+import CodeEditor from "./editor/CodeEditor.jsx";
 import "./App.css";
 
 function App() {
   return (
-    <div className="app">
-      <h1>SyncSpace</h1>
-      <h2>Real-Time Collaborative Whiteboard</h2>
-      <p>Frontend setup completed successfully.</p>
-    </div>
+    <main className="syncspace-app">
+      <header className="app-header">
+        <h1>SyncSpace</h1>
+        <p>Real-Time Collaborative Whiteboard & Code Editor</p>
+      </header>
+
+      <section className="workspace">
+        <div className="whiteboard-pane">
+          <h2>Whiteboard</h2>
+          <p>F1's collaborative whiteboard will be integrated here.</p>
+        </div>
+
+        <div className="editor-pane">
+          <CodeEditor />
+        </div>
+      </section>
+    </main>
   );
 }
 

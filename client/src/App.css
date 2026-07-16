@@ -1,34 +1,131 @@
 * {
-  margin: 0;
-  padding: 0;
   box-sizing: border-box;
 }
 
 body {
-  background-color: #121212;
-  color: white;
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
 }
 
-.app {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+#root {
+  min-height: 100vh;
 }
 
-h1 {
-  font-size: 3rem;
-  color: #4CAF50;
+.syncspace-app {
+  min-height: 100vh;
+  padding: 20px;
+  background: #0f172a;
 }
 
-h2 {
-  margin-top: 15px;
-  font-size: 1.5rem;
+.app-header {
+  margin-bottom: 20px;
+  text-align: center;
 }
 
-p {
-  margin-top: 10px;
-  color: #cccccc;
+.app-header h1 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 42px;
+}
+
+.app-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 18px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(1500px, 100%);
+  height: 75vh;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.whiteboard-pane {
+  padding: 35px;
+  color: #0f172a;
+  background: #ffffff;
+  border-right: 3px solid #334155;
+}
+
+.whiteboard-pane h2 {
+  margin-top: 0;
+  font-size: 30px;
+}
+
+.editor-pane {
+  min-width: 0;
+  height: 100%;
+  background: #1e1e1e;
+}
+
+.code-editor-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.connection-status {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #334155;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.connection-status.connected {
+  background: #15803d;
+}
+
+.connection-status.connecting {
+  background: #b45309;
+}
+
+.connection-status.disconnected {
+  background: #b91c1c;
+}
+
+.yRemoteSelection {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+
+.yRemoteSelectionHead {
+  position: absolute;
+  z-index: 20;
+  height: 100%;
+  border-left: 3px solid #22c55e;
+}
+
+@media (max-width: 768px) {
+  .syncspace-app {
+    padding: 12px;
+  }
+
+  .app-header h1 {
+    font-size: 32px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 110vh;
+  }
+
+  .whiteboard-pane {
+    border-right: none;
+    border-bottom: 3px solid #334155;
+  }
 }
