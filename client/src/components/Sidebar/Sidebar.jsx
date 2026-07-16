@@ -1,23 +1,28 @@
-function Sidebar() {
+import "./Sidebar.css";
+
+function Sidebar({ tool, setTool }) {
   return (
-    <aside
-      style={{
-        width: "220px",
-        background: "#2d2d2d",
-        color: "white",
-        padding: "20px",
-        height: "calc(100vh - 70px)",
-      }}
-    >
+    <div className="sidebar">
       <h3>Tools</h3>
 
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        <li>✏ Pen</li>
-        <li>⬜ Rectangle</li>
-        <li>⭕ Circle</li>
-        <li>📝 Text</li>
-      </ul>
-    </aside>
+      <ul>
+         <li onClick={() => setTool("pen")}>
+             ✏ Pen {tool === "pen" && "✅"}
+        </li>
+
+        <li onClick={() => setTool("rectangle")}>
+             ⬜ Rectangle {tool === "rectangle" && "✅"}
+        </li>
+
+        <li onClick={() => setTool("circle")}>
+            ⭕ Circle {tool === "circle" && "✅"}
+        </li>
+
+        <li onClick={() => setTool("text")}>
+            📝 Text {tool === "text" && "✅"}
+        </li>
+    </ul>
+    </div>
   );
 }
 

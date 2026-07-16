@@ -1,20 +1,20 @@
-import Header from "../components/Header/Header";
+import { useState } from "react";
+import MainLayout from "../layouts/MainLayout";
 import Sidebar from "../components/Sidebar/Sidebar";
 import Whiteboard from "../components/Whiteboard/Whiteboard";
 import CodeEditor from "../components/CodeEditor/CodeEditor";
 
 function Room() {
+  const [tool, setTool] = useState("pen");
   return (
-    <>
-      <Header />
-
+    <MainLayout>
       <div
         style={{
           display: "flex",
           height: "calc(100vh - 70px)",
         }}
       >
-        <Sidebar />
+       <Sidebar tool={tool} setTool={setTool} />
 
         <div
           style={{
@@ -22,11 +22,11 @@ function Room() {
             flex: 1,
           }}
         >
-          <Whiteboard />
+          <Whiteboard tool={tool} />
           <CodeEditor />
         </div>
       </div>
-    </>
+    </MainLayout>
   );
 }
 

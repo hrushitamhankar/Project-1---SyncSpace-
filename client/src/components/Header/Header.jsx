@@ -1,19 +1,16 @@
+import { useNavigate } from "react-router-dom";
+import "./Header.css";
+
 function Header() {
+    const navigate = useNavigate();
   return (
-    <header
-      style={{
-        backgroundColor: "#24292e",
-        color: "white",
-        padding: "15px 30px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
+   <header className="header">
       <h2>SyncSpace</h2>
 
       <div>
-        <button>Join Room</button>
+        <button onClick={() => navigate("/room")}>
+            Join Room
+        </button>
       </div>
     </header>
   );

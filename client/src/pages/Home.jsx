@@ -1,15 +1,16 @@
-import Header from "../components/Header/Header";
+import MainLayout from "../layouts/MainLayout";
 
 function Home() {
   return (
-    <>
-      <Header />
-
+    <MainLayout>
       <div style={{ padding: "40px" }}>
         <h1>Welcome to SyncSpace</h1>
-        <p>Real-Time Collaborative Whiteboard & Code Editor</p>
+
+        <p>
+          Real-Time Collaborative Whiteboard & Code Editor
+        </p>
       </div>
-    </>
+    </MainLayout>
   );
 }
 

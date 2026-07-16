@@ -1,0 +1,12 @@
+.code-editor {
+    flex: 1;
+
+    background: #1e1e1e;
+    color: white;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 22px;
+}
