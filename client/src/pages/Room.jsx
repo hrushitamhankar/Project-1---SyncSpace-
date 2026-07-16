@@ -1,11 +1,32 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import MainLayout from "../layouts/MainLayout";
 import Sidebar from "../components/Sidebar/Sidebar";
 import Whiteboard from "../components/Whiteboard/Whiteboard";
 import CodeEditor from "../components/CodeEditor/CodeEditor";
 
 function Room() {
+    const [clearCanvas, setClearCanvas] = useState(false);
   const [tool, setTool] = useState("pen");
+const [whiteboardWidth, setWhiteboardWidth] = useState(600);
+const isDragging = useRef(false);
+
+const handleMouseDown = () => {
+  isDragging.current = true;
+};
+
+const handleMouseMove = (e) => {
+  if (!isDragging.current) return;
+
+  setWhiteboardWidth(e.clientX - 220);
+};
+
+const handleMouseUp = () => {
+  isDragging.current = false;
+};
+
+window.onmousemove = handleMouseMove;
+window.onmouseup = handleMouseUp;
+  
   return (
     <MainLayout>
       <div
@@ -14,7 +35,11 @@ function Room() {
           height: "calc(100vh - 70px)",
         }}
       >
-       <Sidebar tool={tool} setTool={setTool} />
+      <Sidebar
+    tool={tool}
+    setTool={setTool}
+    setClearCanvas={setClearCanvas}
+/>
 
         <div
           style={{
@@ -22,8 +47,22 @@ function Room() {
             flex: 1,
           }}
         >
-          <Whiteboard tool={tool} />
-          <CodeEditor />
+      <Whiteboard
+  tool={tool}
+  width={whiteboardWidth}
+/>
+
+<div
+  className="divider"
+  onMouseDown={handleMouseDown}
+  style={{
+    width: "5px",
+    cursor: "col-resize",
+    background: "#555",
+  }}
+></div>
+
+<CodeEditor />
         </div>
       </div>
     </MainLayout>

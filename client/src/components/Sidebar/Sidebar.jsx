@@ -21,6 +21,18 @@ function Sidebar({ tool, setTool }) {
         <li onClick={() => setTool("text")}>
             📝 Text {tool === "text" && "✅"}
         </li>
+        <li>
+            <button
+  onClick={() => setTool("clear")}
+  style={{
+    marginTop: "20px",
+    width: "100%",
+    padding: "10px",
+  }}
+>
+  🗑 Clear Canvas
+</button>
+        </li>
     </ul>
     </div>
   );
