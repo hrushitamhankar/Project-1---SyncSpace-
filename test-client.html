@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Test</title>
+</head>
+<body>
+
+<h2>SyncSpace Socket Test</h2>
+
+<button onclick="joinRoom()">Join Room</button>
+<button onclick="leaveRoom()">Leave Room</button>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<script>
+    const socket = io("http://localhost:5000");
+
+    socket.on("connect", () => {
+        console.log("Connected:", socket.id);
+    });
+
+    socket.on("welcome", (data) => {
+        console.log(data);
+    });
+
+    socket.on("user-joined", (data) => {
+        console.log("User Joined:", data);
+    });
+
+    socket.on("user-left", (data) => {
+        console.log("User Left:", data);
+    });
+
+    socket.on("room-members", (data) => {
+        console.log("Members:", data);
+    });
+
+    function joinRoom() {
+        socket.emit("joinRoom", "room1");
+    }
+
+    function leaveRoom() {
+        socket.emit("leaveRoom", "room1");
+    }
+</script>
+
+</body>
+</html>
