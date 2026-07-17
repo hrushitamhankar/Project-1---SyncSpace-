@@ -1,8 +1,8 @@
 import "./Whiteboard.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Stage, Layer, Line, Rect, Circle, Text } from "react-konva";
 
-function Whiteboard({ tool, width }) {
+function Whiteboard({ tool, width, clearCanvas }) {
   const [lines, setLines] = useState([]);
   const [rectangles, setRectangles] = useState([]);
   const [circles, setCircles] = useState([]);
@@ -11,33 +11,29 @@ function Whiteboard({ tool, width }) {
   const [startPos, setStartPos] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-const addText = (pos) => {
-  setTexts([
-    ...texts,
-    {
-      x: pos.x,
-      y: pos.y,
-      text: "Double Click",
-    },
-  ]);
-};
+useEffect(() => {
+  setLines([]);
+  setRectangles([]);
+  setCircles([]);
+  setTexts([]);
+}, [clearCanvas]);
 
 const addCircle = (pos) => {
-  setCircles([
-    ...circles,
-    {
-      x: pos.x,
-      y: pos.y,
-      radius: 40,
-    },
-  ]);
+  setCircles((prev) => [
+  ...prev,
+  {
+    x: pos.x,
+    y: pos.y,
+    radius: 40,
+  },
+]);
 };
 
 const addRectangle = (pos) => {
   setStartPos(pos);
 
-  setRectangles([
-    ...rectangles,
+  setRectangles((prev) => [
+    ...prev,
     {
       x: pos.x,
       y: pos.y,
@@ -50,8 +46,8 @@ const addRectangle = (pos) => {
 const addLine = (pos) => {
   setIsDrawing(true);
 
-  setLines([
-    ...lines,
+  setLines((prev) => [
+    ...prev,
     {
       points: [pos.x, pos.y],
     },
@@ -59,15 +55,12 @@ const addLine = (pos) => {
 };
 
   const handleMouseDown = (e) => {
+    if (e.target !== e.target.getStage()) {
+    return;
+  }
+
     const pos = e.target.getStage().getPointerPosition();
 
-if (tool === "clear") {
-  setLines([]);
-  setRectangles([]);
-  setCircles([]);
-  setTexts([]);
-  return;
-}
 
 if (tool === "pen") {
   addLine(pos);
@@ -82,7 +75,18 @@ if (tool === "circle") {
 }
 
 if (tool === "text") {
-  addText(pos);
+  const value = prompt("Enter text");
+
+  if (value) {
+    setTexts((prev) => [
+      ...prev,
+      {
+        x: pos.x,
+        y: pos.y,
+        text: value,
+      },
+    ]);
+  }
 }
 
 };
@@ -93,26 +97,34 @@ const handleMouseMove = (e) => {
 
   // Pen drawing
   if (tool === "pen" && isDrawing) {
-    const lastLine = lines[lines.length - 1];
+  setLines((prev) => {
+    const updated = [...prev];
 
-    lastLine.points = lastLine.points.concat([point.x, point.y]);
+    const lastLine = updated[updated.length - 1];
 
-    lines.splice(lines.length - 1, 1, lastLine);
+    updated[updated.length - 1] = {
+      ...lastLine,
+      points: [...lastLine.points, point.x, point.y],
+    };
 
-    setLines([...lines]);
-  }
+    return updated;
+  });
+}
 
   // Rectangle drawing
   if (tool === "rectangle" && startPos) {
-    const lastRect = rectangles[rectangles.length - 1];
+  setRectangles((prev) => {
+    const updated = [...prev];
 
-    lastRect.width = point.x - startPos.x;
-    lastRect.height = point.y - startPos.y;
+    updated[updated.length - 1] = {
+      ...updated[updated.length - 1],
+      width: point.x - startPos.x,
+      height: point.y - startPos.y,
+    };
 
-    rectangles.splice(rectangles.length - 1, 1, lastRect);
-
-    setRectangles([...rectangles]);
-  }
+    return updated;
+  });
+}
 };
 
 const handleMouseUp = () => {
@@ -144,37 +156,72 @@ const handleMouseUp = () => {
 
           {rectangles.map((rect, index) => (
             <Rect
-              key={index}
-              x={rect.x}
-              y={rect.y}
-              width={rect.width}
-              height={rect.height}
-              fill="skyblue"
-              stroke="black"
-              strokeWidth={2}
-            />
+  key={index}
+  x={rect.x}
+  y={rect.y}
+  width={rect.width}
+  height={rect.height}
+  fill="skyblue"
+  stroke="black"
+  strokeWidth={2}
+  draggable
+  onDragEnd={(e) => {
+    const updated = [...rectangles];
+
+    updated[index] = {
+      ...updated[index],
+      x: e.target.x(),
+      y: e.target.y(),
+    };
+
+    setRectangles(updated);
+  }}
+/>
           ))}
 
           {circles.map((circle, index) => (
   <Circle
-    key={index}
-    x={circle.x}
-    y={circle.y}
-    radius={circle.radius}
-    fill="lightgreen"
-    stroke="black"
-    strokeWidth={2}
-  />
+  key={index}
+  x={circle.x}
+  y={circle.y}
+  radius={circle.radius}
+  fill="lightgreen"
+  stroke="black"
+  strokeWidth={2}
+  draggable
+  onDragEnd={(e) => {
+    const updated = [...circles];
+
+    updated[index] = {
+      ...updated[index],
+      x: e.target.x(),
+      y: e.target.y(),
+    };
+
+    setCircles(updated);
+  }}
+/>
 ))}
 
-{texts.map((item, index) => (
+{texts.map((text, index) => (
   <Text
     key={index}
-    x={item.x}
-    y={item.y}
-    text={item.text}
+    x={text.x}
+    y={text.y}
+    text={text.text}
     fontSize={20}
-    fill="black"
+    draggable
+    onDragEnd={(e) => {
+      const updated = [...texts];
+
+      updated[index] = {
+        ...updated[index],
+        x: e.target.x(),
+        y: e.target.y(),
+      };
+
+      setTexts(updated);
+    }}
   />
 ))}
         </Layer>

@@ -1,14 +1,25 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import MainLayout from "../layouts/MainLayout";
 import Sidebar from "../components/Sidebar/Sidebar";
 import Whiteboard from "../components/Whiteboard/Whiteboard";
 import CodeEditor from "../components/CodeEditor/CodeEditor";
+import socket from "../services/socket";
 
 function Room() {
     const [clearCanvas, setClearCanvas] = useState(false);
   const [tool, setTool] = useState("pen");
 const [whiteboardWidth, setWhiteboardWidth] = useState(600);
 const isDragging = useRef(false);
+
+useEffect(() => {
+  socket.on("connect", () => {
+    console.log("Connected:", socket.id);
+  });
+
+  return () => {
+    socket.off("connect");
+  };
+}, []);
 
 const handleMouseDown = () => {
   isDragging.current = true;
@@ -47,9 +58,10 @@ window.onmouseup = handleMouseUp;
             flex: 1,
           }}
         >
-      <Whiteboard
+     <Whiteboard
   tool={tool}
   width={whiteboardWidth}
+  clearCanvas={clearCanvas}
 />
 
 <div

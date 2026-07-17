@@ -1,6 +1,6 @@
 import "./Sidebar.css";
 
-function Sidebar({ tool, setTool }) {
+function Sidebar({ tool, setTool, setClearCanvas }) {
   return (
     <div className="sidebar">
       <h3>Tools</h3>
@@ -23,7 +23,7 @@ function Sidebar({ tool, setTool }) {
         </li>
         <li>
             <button
-  onClick={() => setTool("clear")}
+  onClick={() => setClearCanvas((prev) => !prev)}
   style={{
     marginTop: "20px",
     width: "100%",
