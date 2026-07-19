@@ -11,7 +11,6 @@ const STARTER_CODE = `function greet(name) {
 greet("Rakesh");
 `;
 
-// New room name prevents old broken document data from loading.
 const ROOM_NAME = "syncspace-code-room-v3";
 
 function CodeEditor() {
@@ -23,6 +22,7 @@ function CodeEditor() {
     useState("connecting");
 
   const [language, setLanguage] = useState("javascript");
+  const [theme, setTheme] = useState("vs-dark");
 
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
@@ -37,7 +37,7 @@ function CodeEditor() {
       return;
     }
 
-    // Force Monaco and Yjs to use the same line-ending format.
+    // Keep Monaco and Yjs line endings identical.
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
 
     const yDocument = new Y.Doc();
@@ -59,7 +59,6 @@ function CodeEditor() {
       setConnectionStatus(status);
     });
 
-    // Add starter code after the initial server sync.
     provider.on("sync", (isSynced) => {
       if (isSynced && sharedText.length === 0) {
         sharedText.insert(0, STARTER_CODE);
@@ -92,47 +91,65 @@ function CodeEditor() {
 
   return (
     <div className="code-editor-wrapper">
-      <div className={`connection-status ${connectionStatus}`}>
-        Yjs: {connectionStatus}
-      </div>
-
       <div className="editor-toolbar">
-        <label htmlFor="language-select">Language:</label>
+        <div className="toolbar-control">
+          <label htmlFor="language-select">Language:</label>
 
-        <select
-          id="language-select"
-          value={language}
-          onChange={(event) => setLanguage(event.target.value)}
-        >
-          <option value="javascript">JavaScript</option>
-          <option value="typescript">TypeScript</option>
-          <option value="python">Python</option>
-          <option value="java">Java</option>
-          <option value="cpp">C++</option>
-          <option value="html">HTML</option>
-          <option value="css">CSS</option>
-        </select>
+          <select
+            id="language-select"
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+          >
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+          </select>
+        </div>
+
+        <div className="toolbar-control">
+          <label htmlFor="theme-select">Theme:</label>
+
+          <select
+            id="theme-select"
+            value={theme}
+            onChange={(event) => setTheme(event.target.value)}
+          >
+            <option value="vs-dark">Dark</option>
+            <option value="vs">Light</option>
+            <option value="hc-black">High Contrast</option>
+          </select>
+        </div>
+
+        <span className={`connection-status ${connectionStatus}`}>
+          Yjs: {connectionStatus}
+        </span>
       </div>
 
-      <Editor
-        height="100%"
-        path="file:///syncspace/main.js"
-        language={language}
-        defaultValue=""
-        theme="vs-dark"
-        onMount={handleEditorMount}
-        options={{
-          fontSize: 16,
-          automaticLayout: true,
-          minimap: {
-            enabled: true,
-          },
-          wordWrap: "off",
-          scrollBeyondLastLine: false,
-          tabSize: 2,
-          insertSpaces: true,
-        }}
-      />
+      <div className="editor-container">
+        <Editor
+          height="100%"
+          path="file:///syncspace/main.js"
+          language={language}
+          defaultValue=""
+          theme={theme}
+          onMount={handleEditorMount}
+          options={{
+            fontSize: 16,
+            automaticLayout: true,
+            minimap: {
+              enabled: true,
+            },
+            wordWrap: "off",
+            scrollBeyondLastLine: false,
+            tabSize: 2,
+            insertSpaces: true,
+          }}
+        />
+      </div>
     </div>
   );
 }
