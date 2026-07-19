@@ -8,6 +8,8 @@ import socket from "../services/socket";
 function Room() {
     const [clearCanvas, setClearCanvas] = useState(false);
   const [tool, setTool] = useState("pen");
+  const [selectedColor, setSelectedColor] = useState("#000000");
+  const [strokeWidth, setStrokeWidth] = useState(3);
 const [whiteboardWidth, setWhiteboardWidth] = useState(600);
 const isDragging = useRef(false);
 
@@ -46,10 +48,14 @@ window.onmouseup = handleMouseUp;
           height: "calc(100vh - 70px)",
         }}
       >
-      <Sidebar
-    tool={tool}
-    setTool={setTool}
-    setClearCanvas={setClearCanvas}
+  <Sidebar
+  tool={tool}
+  setTool={setTool}
+  setClearCanvas={setClearCanvas}
+  selectedColor={selectedColor}
+  setSelectedColor={setSelectedColor}
+   strokeWidth={strokeWidth}
+  setStrokeWidth={setStrokeWidth}
 />
 
         <div
@@ -58,10 +64,12 @@ window.onmouseup = handleMouseUp;
             flex: 1,
           }}
         >
-     <Whiteboard
+  <Whiteboard
   tool={tool}
   width={whiteboardWidth}
   clearCanvas={clearCanvas}
+  selectedColor={selectedColor}
+   strokeWidth={strokeWidth}
 />
 
 <div

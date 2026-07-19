@@ -2,34 +2,91 @@ import "./Whiteboard.css";
 import { useState, useEffect } from "react";
 import { Stage, Layer, Line, Rect, Circle, Text } from "react-konva";
 
-function Whiteboard({ tool, width, clearCanvas }) {
+function Whiteboard({
+  tool,
+  width,
+  clearCanvas,
+  selectedColor,
+  strokeWidth,
+}) {
+
   const [lines, setLines] = useState([]);
   const [rectangles, setRectangles] = useState([]);
   const [circles, setCircles] = useState([]);
   const [texts, setTexts] = useState([]);
 
+const [history, setHistory] = useState([]);
+const [redoHistory, setRedoHistory] = useState([]);
+
+
   const [startPos, setStartPos] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
 useEffect(() => {
+  saveHistory();
+
   setLines([]);
   setRectangles([]);
   setCircles([]);
   setTexts([]);
 }, [clearCanvas]);
 
+const saveHistory = () => {
+  setHistory((prev) => [
+    ...prev,
+    {
+      lines: [...lines],
+      rectangles: [...rectangles],
+      circles: [...circles],
+      texts: [...texts],
+    },
+  ]);
+
+  setRedoHistory([]);
+};
+
+
+const undo = () => {
+  if (history.length === 0) return;
+
+  const previous = history[history.length - 1];
+
+  setRedoHistory((prev) => [
+    ...prev,
+    {
+      lines,
+      rectangles,
+      circles,
+      texts,
+    },
+  ]);
+
+  setLines(previous.lines);
+  setRectangles(previous.rectangles);
+  setCircles(previous.circles);
+  setTexts(previous.texts);
+
+  setHistory((prev) => prev.slice(0, -1));
+};
+
 const addCircle = (pos) => {
+  saveHistory();
+
   setCircles((prev) => [
-  ...prev,
-  {
-    x: pos.x,
-    y: pos.y,
-    radius: 40,
-  },
-]);
+    ...prev,
+    {
+      x: pos.x,
+      y: pos.y,
+      radius: 40,
+      color: selectedColor,
+      strokeWidth,
+    },
+  ]);
 };
 
 const addRectangle = (pos) => {
+  saveHistory();
+
   setStartPos(pos);
 
   setRectangles((prev) => [
@@ -39,6 +96,8 @@ const addRectangle = (pos) => {
       y: pos.y,
       width: 0,
       height: 0,
+      color: selectedColor,
+      strokeWidth,
     },
   ]);
 };
@@ -48,9 +107,11 @@ const addLine = (pos) => {
 
   setLines((prev) => [
     ...prev,
-    {
-      points: [pos.x, pos.y],
-    },
+ {
+  points: [pos.x, pos.y],
+  color: selectedColor,
+  strokeWidth,
+},
   ]);
 };
 
@@ -78,12 +139,14 @@ if (tool === "text") {
   const value = prompt("Enter text");
 
   if (value) {
+    saveHistory();
     setTexts((prev) => [
       ...prev,
       {
         x: pos.x,
         y: pos.y,
         text: value,
+        color: selectedColor,
       },
     ]);
   }
@@ -146,24 +209,24 @@ const handleMouseUp = () => {
             <Line
               key={index}
               points={line.points}
-              stroke="black"
-              strokeWidth={3}
+              stroke={line.color}
+              strokeWidth={line.strokeWidth}
               tension={0.5}
               lineCap="round"
               lineJoin="round"
             />
           ))}
 
-          {rectangles.map((rect, index) => (
-            <Rect
+{rectangles.map((rect, index) => (
+<Rect
   key={index}
   x={rect.x}
   y={rect.y}
   width={rect.width}
   height={rect.height}
-  fill="skyblue"
-  stroke="black"
-  strokeWidth={2}
+fill="transparent"
+stroke={rect.color}
+strokeWidth={rect.strokeWidth}
   draggable
   onDragEnd={(e) => {
     const updated = [...rectangles];
@@ -177,17 +240,17 @@ const handleMouseUp = () => {
     setRectangles(updated);
   }}
 />
-          ))}
+ ))}
 
-          {circles.map((circle, index) => (
+{circles.map((circle, index) => (
   <Circle
   key={index}
   x={circle.x}
   y={circle.y}
   radius={circle.radius}
-  fill="lightgreen"
-  stroke="black"
-  strokeWidth={2}
+fill="transparent"
+stroke={circle.color}
+strokeWidth={circle.strokeWidth}
   draggable
   onDragEnd={(e) => {
     const updated = [...circles];
@@ -210,6 +273,7 @@ const handleMouseUp = () => {
     y={text.y}
     text={text.text}
     fontSize={20}
+    fill={text.color}
     draggable
     onDragEnd={(e) => {
       const updated = [...texts];
