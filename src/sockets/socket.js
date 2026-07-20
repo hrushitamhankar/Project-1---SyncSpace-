@@ -25,12 +25,7 @@ import {
  * room-members
  * user-joined
  * user-left
- *
- * Week 2 (Upcoming)
- * --------------------------
- * cursor-update
- * user-updated
- * room-awareness
+ * awareness-updated
  */
 
 /**
@@ -91,10 +86,12 @@ export default function initializeSocket(io) {
                 `[ROOM] ${roomId}: ${getRoomMembers(roomId).length} member(s)`
             );
 
+            // Notify other users
             socket.to(roomId).emit("user-joined", {
                 socketId: socket.id
             });
 
+            // Send current room members
             socket.emit("room-members", {
                 roomId,
                 members: getRoomMembers(roomId)
@@ -136,9 +133,8 @@ export default function initializeSocket(io) {
         /**
          * Awareness Update
          *
-         * Day 1:
-         * Store awareness only.
-         * Broadcasting will be added on Day 2.
+         * Stores awareness state and relays it
+         * to all other users in the room.
          */
         socket.on("awareness-update", (data) => {
 
@@ -154,17 +150,35 @@ export default function initializeSocket(io) {
                 return;
             }
 
+            const roomId = data.roomId.trim();
+
+            const awareness = {
+
+                socketId: socket.id,
+
+                cursor: data.cursor || null,
+
+                user: data.user || null,
+
+                timestamp: Date.now()
+
+            };
+
+            // Store awareness state
             updateAwareness(
-                data.roomId,
+                roomId,
                 socket.id,
-                {
-                    socketId: socket.id,
-                    ...data
-                }
+                awareness
             );
 
             console.log(
-                `[AWARENESS] Stored awareness for ${socket.id}`
+                `[AWARENESS] ${socket.id} updated awareness in ${roomId}`
+            );
+
+            // Relay awareness to everyone except sender
+            socket.to(roomId).emit(
+                "awareness-updated",
+                awareness
             );
 
         });
