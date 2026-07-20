@@ -24,6 +24,7 @@ function CodeEditor() {
   const [language, setLanguage] = useState("javascript");
   const [theme, setTheme] = useState("vs-dark");
   const [fontSize, setFontSize] = useState(16);
+  const [showLineNumbers, setShowLineNumbers] = useState(true);
 
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
@@ -147,6 +148,22 @@ function CodeEditor() {
           </select>
         </div>
 
+        {/* Line-numbers selector */}
+        <div className="toolbar-control">
+          <label htmlFor="line-numbers-select">Lines:</label>
+
+          <select
+            id="line-numbers-select"
+            value={showLineNumbers ? "show" : "hide"}
+            onChange={(event) =>
+              setShowLineNumbers(event.target.value === "show")
+            }
+          >
+            <option value="show">Show</option>
+            <option value="hide">Hide</option>
+          </select>
+        </div>
+
         {/* Yjs connection status */}
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
@@ -163,6 +180,7 @@ function CodeEditor() {
           onMount={handleEditorMount}
           options={{
             fontSize,
+            lineNumbers: showLineNumbers ? "on" : "off",
             automaticLayout: true,
             minimap: {
               enabled: true,
