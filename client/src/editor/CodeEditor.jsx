@@ -23,6 +23,7 @@ function CodeEditor() {
 
   const [language, setLanguage] = useState("javascript");
   const [theme, setTheme] = useState("vs-dark");
+  const [fontSize, setFontSize] = useState(16);
 
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
@@ -92,6 +93,7 @@ function CodeEditor() {
   return (
     <div className="code-editor-wrapper">
       <div className="editor-toolbar">
+        {/* Language selector */}
         <div className="toolbar-control">
           <label htmlFor="language-select">Language:</label>
 
@@ -110,6 +112,7 @@ function CodeEditor() {
           </select>
         </div>
 
+        {/* Theme selector */}
         <div className="toolbar-control">
           <label htmlFor="theme-select">Theme:</label>
 
@@ -124,6 +127,27 @@ function CodeEditor() {
           </select>
         </div>
 
+        {/* Font-size selector */}
+        <div className="toolbar-control">
+          <label htmlFor="font-size-select">Font:</label>
+
+          <select
+            id="font-size-select"
+            value={fontSize}
+            onChange={(event) =>
+              setFontSize(Number(event.target.value))
+            }
+          >
+            <option value={12}>12px</option>
+            <option value={14}>14px</option>
+            <option value={16}>16px</option>
+            <option value={18}>18px</option>
+            <option value={20}>20px</option>
+            <option value={24}>24px</option>
+          </select>
+        </div>
+
+        {/* Yjs connection status */}
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
@@ -138,7 +162,7 @@ function CodeEditor() {
           theme={theme}
           onMount={handleEditorMount}
           options={{
-            fontSize: 16,
+            fontSize,
             automaticLayout: true,
             minimap: {
               enabled: true,
