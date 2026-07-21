@@ -25,7 +25,7 @@ function CodeEditor() {
   const [theme, setTheme] = useState("vs-dark");
   const [fontSize, setFontSize] = useState(16);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
-
+const [wordWrap, setWordWrap] = useState(false);
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
     if (bindingRef.current) {
@@ -163,8 +163,23 @@ function CodeEditor() {
             <option value="hide">Hide</option>
           </select>
         </div>
+        
 
         {/* Yjs connection status */}
+        <div className="toolbar-control">
+  <label htmlFor="word-wrap-select">Wrap:</label>
+
+  <select
+    id="word-wrap-select"
+    value={wordWrap ? "on" : "off"}
+    onChange={(event) =>
+      setWordWrap(event.target.value === "on")
+    }
+  >
+    <option value="off">Off</option>
+    <option value="on">On</option>
+  </select>
+</div>
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
@@ -178,18 +193,18 @@ function CodeEditor() {
           defaultValue=""
           theme={theme}
           onMount={handleEditorMount}
-          options={{
-            fontSize,
-            lineNumbers: showLineNumbers ? "on" : "off",
-            automaticLayout: true,
-            minimap: {
-              enabled: true,
-            },
-            wordWrap: "off",
-            scrollBeyondLastLine: false,
-            tabSize: 2,
-            insertSpaces: true,
-          }}
+         options={{
+  fontSize,
+  lineNumbers: showLineNumbers ? "on" : "off",
+  wordWrap: wordWrap ? "on" : "off",
+  automaticLayout: true,
+  minimap: {
+    enabled: true,
+  },
+  scrollBeyondLastLine: false,
+  tabSize: 2,
+  insertSpaces: true,
+}}
         />
       </div>
     </div>
