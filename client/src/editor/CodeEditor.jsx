@@ -26,6 +26,7 @@ function CodeEditor() {
   const [fontSize, setFontSize] = useState(16);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
 const [wordWrap, setWordWrap] = useState(false);
+const [showMinimap, setShowMinimap] = useState(true);
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
     if (bindingRef.current) {
@@ -180,6 +181,20 @@ const [wordWrap, setWordWrap] = useState(false);
     <option value="on">On</option>
   </select>
 </div>
+<div className="toolbar-control">
+  <label htmlFor="minimap-select">Minimap:</label>
+
+  <select
+    id="minimap-select"
+    value={showMinimap ? "show" : "hide"}
+    onChange={(event) =>
+      setShowMinimap(event.target.value === "show")
+    }
+  >
+    <option value="show">Show</option>
+    <option value="hide">Hide</option>
+  </select>
+</div>
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
@@ -198,9 +213,9 @@ const [wordWrap, setWordWrap] = useState(false);
   lineNumbers: showLineNumbers ? "on" : "off",
   wordWrap: wordWrap ? "on" : "off",
   automaticLayout: true,
-  minimap: {
-    enabled: true,
-  },
+ minimap: {
+  enabled: showMinimap,
+},
   scrollBeyondLastLine: false,
   tabSize: 2,
   insertSpaces: true,
