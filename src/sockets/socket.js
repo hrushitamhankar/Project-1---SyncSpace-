@@ -100,6 +100,60 @@ export default function initializeSocket(io) {
         });
 
         /**
+         * Rejoin Room
+         *
+         * Called after a reconnect or browser refresh.
+         */
+        socket.on("rejoin-room", (roomId) => {
+
+            if (
+                typeof roomId !== "string" ||
+                roomId.trim().length === 0
+            ) {
+
+                socket.emit("room-error", {
+                    message: "Invalid room ID"
+                });
+
+                return;
+            }
+
+            roomId = roomId.trim();
+
+            // Prevent duplicate join
+            if (getRoomMembers(roomId).includes(socket.id)) {
+
+                socket.emit("room-error", {
+                    message: "Already joined this room"
+                });
+
+                return;
+            }
+
+            socket.join(roomId);
+
+            joinRoom(roomId, socket.id);
+
+            console.log(`[REJOIN] ${socket.id} -> ${roomId}`);
+
+            console.log(
+                `[ROOM] ${roomId}: ${getRoomMembers(roomId).length} member(s)`
+            );
+
+            // Restore room state to reconnecting client
+            socket.emit("room-restored", {
+                roomId,
+                members: getRoomMembers(roomId)
+            });
+
+            // Notify everyone else
+            socket.to(roomId).emit("user-reconnected", {
+                socketId: socket.id
+            });
+
+        });
+
+        /**
          * Leave Room
          */
         socket.on("leaveRoom", (roomId) => {
