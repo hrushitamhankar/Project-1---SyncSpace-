@@ -27,6 +27,7 @@ function CodeEditor() {
   const [showLineNumbers, setShowLineNumbers] = useState(true);
 const [wordWrap, setWordWrap] = useState(false);
 const [showMinimap, setShowMinimap] = useState(true);
+const [tabSize, setTabSize] = useState(2);
   const handleEditorMount = (editor, monaco) => {
     // Prevent accidental double binding.
     if (bindingRef.current) {
@@ -195,6 +196,20 @@ const [showMinimap, setShowMinimap] = useState(true);
     <option value="hide">Hide</option>
   </select>
 </div>
+<div className="toolbar-control">
+  <label htmlFor="tab-size-select">Tab:</label>
+
+  <select
+    id="tab-size-select"
+    value={tabSize}
+    onChange={(event) => setTabSize(Number(event.target.value))}
+  >
+    <option value={2}>2 spaces</option>
+    <option value={4}>4 spaces</option>
+    <option value={6}>6 spaces</option>
+    <option value={8}>8 spaces</option>
+  </select>
+</div>
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
@@ -217,7 +232,7 @@ const [showMinimap, setShowMinimap] = useState(true);
   enabled: showMinimap,
 },
   scrollBeyondLastLine: false,
-  tabSize: 2,
+  tabSize,
   insertSpaces: true,
 }}
         />
