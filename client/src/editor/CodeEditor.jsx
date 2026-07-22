@@ -80,7 +80,24 @@ function CodeEditor() {
     providerRef.current = provider;
     documentRef.current = yDocument;
   };
+const handleResetEditor = () => {
+  if (readOnly) {
+    return;
+  }
 
+  const yDocument = documentRef.current;
+
+  if (!yDocument) {
+    return;
+  }
+
+  const sharedText = yDocument.getText("code");
+
+  yDocument.transact(() => {
+    sharedText.delete(0, sharedText.length);
+    sharedText.insert(0, STARTER_CODE);
+  });
+};
   useEffect(() => {
     return () => {
       bindingRef.current?.destroy();
@@ -233,6 +250,15 @@ function CodeEditor() {
         </div>
 
         {/* Yjs connection status */}
+        <button
+  type="button"
+  className="reset-editor-button"
+  onClick={handleResetEditor}
+  disabled={readOnly}
+  title={readOnly ? "Reset is disabled in read-only mode" : "Reset editor code"}
+>
+  Reset
+</button>
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
