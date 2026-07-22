@@ -17,6 +17,7 @@ function CodeEditor() {
   const bindingRef = useRef(null);
   const providerRef = useRef(null);
   const documentRef = useRef(null);
+  const editorRef = useRef(null);
 
   const [connectionStatus, setConnectionStatus] =
     useState("connecting");
@@ -31,6 +32,9 @@ function CodeEditor() {
   const [readOnly, setReadOnly] = useState(false);
 
   const handleEditorMount = (editor, monaco) => {
+    editorRef.current = editor;
+
+    // Prevent accidental double binding.
     if (bindingRef.current) {
       return;
     }
@@ -42,6 +46,7 @@ function CodeEditor() {
       return;
     }
 
+    // Keep Monaco and Yjs line endings identical.
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
 
     const yDocument = new Y.Doc();
@@ -80,24 +85,42 @@ function CodeEditor() {
     providerRef.current = provider;
     documentRef.current = yDocument;
   };
-const handleResetEditor = () => {
-  if (readOnly) {
-    return;
-  }
 
-  const yDocument = documentRef.current;
+  const handleResetEditor = () => {
+    if (readOnly) {
+      return;
+    }
 
-  if (!yDocument) {
-    return;
-  }
+    const yDocument = documentRef.current;
 
-  const sharedText = yDocument.getText("code");
+    if (!yDocument) {
+      return;
+    }
 
-  yDocument.transact(() => {
-    sharedText.delete(0, sharedText.length);
-    sharedText.insert(0, STARTER_CODE);
-  });
-};
+    const sharedText = yDocument.getText("code");
+
+    yDocument.transact(() => {
+      sharedText.delete(0, sharedText.length);
+      sharedText.insert(0, STARTER_CODE);
+    });
+  };
+
+  const handleCopyCode = async () => {
+    const editor = editorRef.current;
+
+    if (!editor) {
+      return;
+    }
+
+    const code = editor.getValue();
+
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch (error) {
+      console.error("Unable to copy editor code:", error);
+    }
+  };
+
   useEffect(() => {
     return () => {
       bindingRef.current?.destroy();
@@ -107,6 +130,7 @@ const handleResetEditor = () => {
       bindingRef.current = null;
       providerRef.current = null;
       documentRef.current = null;
+      editorRef.current = null;
     };
   }, []);
 
@@ -233,7 +257,7 @@ const handleResetEditor = () => {
           </select>
         </div>
 
-        {/* Read-only mode selector */}
+        {/* Read-only selector */}
         <div className="toolbar-control">
           <label htmlFor="read-only-select">Mode:</label>
 
@@ -249,16 +273,32 @@ const handleResetEditor = () => {
           </select>
         </div>
 
-        {/* Yjs connection status */}
+        {/* Copy code button */}
         <button
-  type="button"
-  className="reset-editor-button"
-  onClick={handleResetEditor}
-  disabled={readOnly}
-  title={readOnly ? "Reset is disabled in read-only mode" : "Reset editor code"}
->
-  Reset
-</button>
+          type="button"
+          className="copy-code-button"
+          onClick={handleCopyCode}
+          title="Copy all editor code"
+        >
+          Copy
+        </button>
+
+        {/* Reset editor button */}
+        <button
+          type="button"
+          className="reset-editor-button"
+          onClick={handleResetEditor}
+          disabled={readOnly}
+          title={
+            readOnly
+              ? "Reset is disabled in read-only mode"
+              : "Reset editor code"
+          }
+        >
+          Reset
+        </button>
+
+        {/* Yjs connection status */}
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
