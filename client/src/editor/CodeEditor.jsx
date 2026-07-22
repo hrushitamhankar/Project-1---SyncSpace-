@@ -30,7 +30,7 @@ function CodeEditor() {
   const [showMinimap, setShowMinimap] = useState(true);
   const [tabSize, setTabSize] = useState(2);
   const [readOnly, setReadOnly] = useState(false);
-
+const [fileName, setFileName] = useState("main.js");
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
 
@@ -297,7 +297,18 @@ function CodeEditor() {
         >
           Reset
         </button>
+<div className="toolbar-control">
+  <label htmlFor="file-name-input">File:</label>
 
+  <input
+    id="file-name-input"
+    type="text"
+    value={fileName}
+    onChange={(event) => setFileName(event.target.value)}
+    placeholder="main.js"
+    aria-label="Editor file name"
+  />
+</div>
         {/* Yjs connection status */}
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
@@ -307,7 +318,7 @@ function CodeEditor() {
       <div className="editor-container">
         <Editor
           height="100%"
-          path="file:///syncspace/main.js"
+        path="file:///syncspace/main.js"
           language={language}
           defaultValue=""
           theme={theme}
