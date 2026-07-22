@@ -25,11 +25,12 @@ function CodeEditor() {
   const [theme, setTheme] = useState("vs-dark");
   const [fontSize, setFontSize] = useState(16);
   const [showLineNumbers, setShowLineNumbers] = useState(true);
-const [wordWrap, setWordWrap] = useState(false);
-const [showMinimap, setShowMinimap] = useState(true);
-const [tabSize, setTabSize] = useState(2);
+  const [wordWrap, setWordWrap] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [tabSize, setTabSize] = useState(2);
+  const [readOnly, setReadOnly] = useState(false);
+
   const handleEditorMount = (editor, monaco) => {
-    // Prevent accidental double binding.
     if (bindingRef.current) {
       return;
     }
@@ -41,7 +42,6 @@ const [tabSize, setTabSize] = useState(2);
       return;
     }
 
-    // Keep Monaco and Yjs line endings identical.
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
 
     const yDocument = new Y.Doc();
@@ -165,51 +165,74 @@ const [tabSize, setTabSize] = useState(2);
             <option value="hide">Hide</option>
           </select>
         </div>
-        
+
+        {/* Word-wrap selector */}
+        <div className="toolbar-control">
+          <label htmlFor="word-wrap-select">Wrap:</label>
+
+          <select
+            id="word-wrap-select"
+            value={wordWrap ? "on" : "off"}
+            onChange={(event) =>
+              setWordWrap(event.target.value === "on")
+            }
+          >
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        {/* Minimap selector */}
+        <div className="toolbar-control">
+          <label htmlFor="minimap-select">Minimap:</label>
+
+          <select
+            id="minimap-select"
+            value={showMinimap ? "show" : "hide"}
+            onChange={(event) =>
+              setShowMinimap(event.target.value === "show")
+            }
+          >
+            <option value="show">Show</option>
+            <option value="hide">Hide</option>
+          </select>
+        </div>
+
+        {/* Tab-size selector */}
+        <div className="toolbar-control">
+          <label htmlFor="tab-size-select">Tab:</label>
+
+          <select
+            id="tab-size-select"
+            value={tabSize}
+            onChange={(event) =>
+              setTabSize(Number(event.target.value))
+            }
+          >
+            <option value={2}>2 spaces</option>
+            <option value={4}>4 spaces</option>
+            <option value={6}>6 spaces</option>
+            <option value={8}>8 spaces</option>
+          </select>
+        </div>
+
+        {/* Read-only mode selector */}
+        <div className="toolbar-control">
+          <label htmlFor="read-only-select">Mode:</label>
+
+          <select
+            id="read-only-select"
+            value={readOnly ? "readonly" : "editable"}
+            onChange={(event) =>
+              setReadOnly(event.target.value === "readonly")
+            }
+          >
+            <option value="editable">Editable</option>
+            <option value="readonly">Read Only</option>
+          </select>
+        </div>
 
         {/* Yjs connection status */}
-        <div className="toolbar-control">
-  <label htmlFor="word-wrap-select">Wrap:</label>
-
-  <select
-    id="word-wrap-select"
-    value={wordWrap ? "on" : "off"}
-    onChange={(event) =>
-      setWordWrap(event.target.value === "on")
-    }
-  >
-    <option value="off">Off</option>
-    <option value="on">On</option>
-  </select>
-</div>
-<div className="toolbar-control">
-  <label htmlFor="minimap-select">Minimap:</label>
-
-  <select
-    id="minimap-select"
-    value={showMinimap ? "show" : "hide"}
-    onChange={(event) =>
-      setShowMinimap(event.target.value === "show")
-    }
-  >
-    <option value="show">Show</option>
-    <option value="hide">Hide</option>
-  </select>
-</div>
-<div className="toolbar-control">
-  <label htmlFor="tab-size-select">Tab:</label>
-
-  <select
-    id="tab-size-select"
-    value={tabSize}
-    onChange={(event) => setTabSize(Number(event.target.value))}
-  >
-    <option value={2}>2 spaces</option>
-    <option value={4}>4 spaces</option>
-    <option value={6}>6 spaces</option>
-    <option value={8}>8 spaces</option>
-  </select>
-</div>
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
@@ -223,18 +246,19 @@ const [tabSize, setTabSize] = useState(2);
           defaultValue=""
           theme={theme}
           onMount={handleEditorMount}
-         options={{
-  fontSize,
-  lineNumbers: showLineNumbers ? "on" : "off",
-  wordWrap: wordWrap ? "on" : "off",
-  automaticLayout: true,
- minimap: {
-  enabled: showMinimap,
-},
-  scrollBeyondLastLine: false,
-  tabSize,
-  insertSpaces: true,
-}}
+          options={{
+            fontSize,
+            lineNumbers: showLineNumbers ? "on" : "off",
+            wordWrap: wordWrap ? "on" : "off",
+            readOnly,
+            automaticLayout: true,
+            minimap: {
+              enabled: showMinimap,
+            },
+            scrollBeyondLastLine: false,
+            tabSize,
+            insertSpaces: true,
+          }}
         />
       </div>
     </div>
