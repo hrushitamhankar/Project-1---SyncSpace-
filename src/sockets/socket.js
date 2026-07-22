@@ -206,6 +206,24 @@ export default function initializeSocket(io) {
 
             const roomId = data.roomId.trim();
 
+            if (!roomId) {
+
+                socket.emit("room-error", {
+                    message: "Room ID cannot be empty"
+                });
+
+                return;
+            }
+
+            if (!socket.rooms.has(roomId)) {
+
+                socket.emit("room-error", {
+                    message: "You are not a member of this room"
+                });
+
+                return;
+            }
+
             const awareness = {
 
                 socketId: socket.id,
@@ -226,7 +244,8 @@ export default function initializeSocket(io) {
             );
 
             console.log(
-                `[AWARENESS] ${socket.id} updated awareness in ${roomId}`
+                `[AWARENESS] ${socket.id} -> ${roomId}`,
+                awareness
             );
 
             // Relay awareness to everyone except sender
