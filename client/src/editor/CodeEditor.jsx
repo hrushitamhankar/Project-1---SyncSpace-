@@ -11,7 +11,16 @@ const STARTER_CODE = `function greet(name) {
 greet("Rakesh");
 `;
 
-const ROOM_NAME = "syncspace-code-room-v3";
+const DEFAULT_ROOM_NAME = "syncspace-code-room-v3";
+
+const getRoomName = () => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const roomName = searchParams.get("room");
+
+  return roomName?.trim() || DEFAULT_ROOM_NAME;
+};
+
+const ROOM_NAME = getRoomName();
 
 function CodeEditor() {
   const bindingRef = useRef(null);
@@ -19,6 +28,7 @@ function CodeEditor() {
   const documentRef = useRef(null);
   const editorRef = useRef(null);
   const awarenessChangeHandlerRef = useRef(null);
+  const shareTimerRef = useRef(null);
 
   const [connectionStatus, setConnectionStatus] =
     useState("connecting");
@@ -34,6 +44,7 @@ function CodeEditor() {
   const [fileName, setFileName] = useState("main.js");
   const [activeUsers, setActiveUsers] = useState(0);
   const [activeUserDetails, setActiveUserDetails] = useState([]);
+  const [shareFeedback, setShareFeedback] = useState("");
 
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -139,6 +150,27 @@ function CodeEditor() {
     }
   };
 
+  const handleShareRoom = async () => {
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.set("room", ROOM_NAME);
+
+    try {
+      await navigator.clipboard.writeText(shareUrl.toString());
+      setShareFeedback("Link copied!");
+
+      if (shareTimerRef.current) {
+        window.clearTimeout(shareTimerRef.current);
+      }
+
+      shareTimerRef.current = window.setTimeout(() => {
+        setShareFeedback("");
+      }, 2000);
+    } catch (error) {
+      console.error("Unable to copy room link:", error);
+      setShareFeedback("Copy failed");
+    }
+  };
+
   useEffect(() => {
     return () => {
       const provider = providerRef.current;
@@ -146,6 +178,10 @@ function CodeEditor() {
 
       if (provider && awarenessHandler) {
         provider.awareness.off("change", awarenessHandler);
+      }
+
+      if (shareTimerRef.current) {
+        window.clearTimeout(shareTimerRef.current);
       }
 
       bindingRef.current?.destroy();
@@ -157,6 +193,7 @@ function CodeEditor() {
       documentRef.current = null;
       editorRef.current = null;
       awarenessChangeHandlerRef.current = null;
+      shareTimerRef.current = null;
     };
   }, []);
 
@@ -165,6 +202,7 @@ function CodeEditor() {
       <div className="editor-toolbar">
         <div className="toolbar-control">
           <label htmlFor="language-select">Language:</label>
+
           <select
             id="language-select"
             value={language}
@@ -182,6 +220,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="theme-select">Theme:</label>
+
           <select
             id="theme-select"
             value={theme}
@@ -195,6 +234,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="font-size-select">Font:</label>
+
           <select
             id="font-size-select"
             value={fontSize}
@@ -213,6 +253,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="line-numbers-select">Lines:</label>
+
           <select
             id="line-numbers-select"
             value={showLineNumbers ? "show" : "hide"}
@@ -227,6 +268,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="word-wrap-select">Wrap:</label>
+
           <select
             id="word-wrap-select"
             value={wordWrap ? "on" : "off"}
@@ -241,6 +283,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="minimap-select">Minimap:</label>
+
           <select
             id="minimap-select"
             value={showMinimap ? "show" : "hide"}
@@ -255,6 +298,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="tab-size-select">Tab:</label>
+
           <select
             id="tab-size-select"
             value={tabSize}
@@ -271,6 +315,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="read-only-select">Mode:</label>
+
           <select
             id="read-only-select"
             value={readOnly ? "readonly" : "editable"}
@@ -285,6 +330,7 @@ function CodeEditor() {
 
         <div className="toolbar-control">
           <label htmlFor="file-name-input">File:</label>
+
           <input
             id="file-name-input"
             type="text"
@@ -309,6 +355,15 @@ function CodeEditor() {
           disabled={readOnly}
         >
           Reset
+        </button>
+
+        <button
+          type="button"
+          className="copy-code-button share-room-button"
+          onClick={handleShareRoom}
+          title="Copy the collaborative room link"
+        >
+          {shareFeedback || "Share Room"}
         </button>
 
         <span className="active-users-count">
