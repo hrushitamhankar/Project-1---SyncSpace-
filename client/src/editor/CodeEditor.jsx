@@ -20,6 +20,14 @@ const getRoomName = () => {
   return roomName?.trim() || DEFAULT_ROOM_NAME;
 };
 
+const sanitizeFileName = (name) => {
+  const cleanedName = name
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_");
+
+  return cleanedName || "main.js";
+};
+
 const ROOM_NAME = getRoomName();
 
 function CodeEditor() {
@@ -28,8 +36,10 @@ function CodeEditor() {
   const documentRef = useRef(null);
   const editorRef = useRef(null);
   const awarenessChangeHandlerRef = useRef(null);
+
   const copyTimerRef = useRef(null);
   const shareTimerRef = useRef(null);
+  const downloadTimerRef = useRef(null);
 
   const [connectionStatus, setConnectionStatus] =
     useState("connecting");
@@ -43,10 +53,13 @@ function CodeEditor() {
   const [tabSize, setTabSize] = useState(2);
   const [readOnly, setReadOnly] = useState(false);
   const [fileName, setFileName] = useState("main.js");
+
   const [activeUsers, setActiveUsers] = useState(0);
   const [activeUserDetails, setActiveUserDetails] = useState([]);
+
   const [copyFeedback, setCopyFeedback] = useState("");
   const [shareFeedback, setShareFeedback] = useState("");
+  const [downloadFeedback, setDownloadFeedback] = useState("");
 
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -171,6 +184,59 @@ function CodeEditor() {
     }
   };
 
+  const handleDownloadCode = () => {
+    const editor = editorRef.current;
+
+    if (!editor) {
+      setDownloadFeedback("Failed");
+      return;
+    }
+
+    try {
+      const code = editor.getValue();
+      const safeFileName = sanitizeFileName(fileName);
+
+      const fileBlob = new Blob([code], {
+        type: "text/plain;charset=utf-8",
+      });
+
+      const downloadUrl = URL.createObjectURL(fileBlob);
+      const downloadLink = document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = safeFileName;
+
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+
+      window.setTimeout(() => {
+        URL.revokeObjectURL(downloadUrl);
+      }, 0);
+
+      setDownloadFeedback("Downloaded!");
+
+      if (downloadTimerRef.current) {
+        window.clearTimeout(downloadTimerRef.current);
+      }
+
+      downloadTimerRef.current = window.setTimeout(() => {
+        setDownloadFeedback("");
+      }, 2000);
+    } catch (error) {
+      console.error("Unable to download editor code:", error);
+      setDownloadFeedback("Failed");
+
+      if (downloadTimerRef.current) {
+        window.clearTimeout(downloadTimerRef.current);
+      }
+
+      downloadTimerRef.current = window.setTimeout(() => {
+        setDownloadFeedback("");
+      }, 2000);
+    }
+  };
+
   const handleShareRoom = async () => {
     const shareUrl = new URL(window.location.href);
     shareUrl.searchParams.set("room", ROOM_NAME);
@@ -217,6 +283,10 @@ function CodeEditor() {
         window.clearTimeout(shareTimerRef.current);
       }
 
+      if (downloadTimerRef.current) {
+        window.clearTimeout(downloadTimerRef.current);
+      }
+
       bindingRef.current?.destroy();
       providerRef.current?.destroy();
       documentRef.current?.destroy();
@@ -226,8 +296,10 @@ function CodeEditor() {
       documentRef.current = null;
       editorRef.current = null;
       awarenessChangeHandlerRef.current = null;
+
       copyTimerRef.current = null;
       shareTimerRef.current = null;
+      downloadTimerRef.current = null;
     };
   }, []);
 
@@ -381,6 +453,15 @@ function CodeEditor() {
           title="Copy all editor code"
         >
           {copyFeedback || "Copy"}
+        </button>
+
+        <button
+          type="button"
+          className="copy-code-button download-code-button"
+          onClick={handleDownloadCode}
+          title="Download editor code as a file"
+        >
+          {downloadFeedback || "Download"}
         </button>
 
         <button
