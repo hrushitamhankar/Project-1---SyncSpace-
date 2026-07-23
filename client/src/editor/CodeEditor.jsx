@@ -33,6 +33,7 @@ function CodeEditor() {
   const [readOnly, setReadOnly] = useState(false);
   const [fileName, setFileName] = useState("main.js");
   const [activeUsers, setActiveUsers] = useState(0);
+  const [activeUserNames, setActiveUserNames] = useState([]);
 
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -68,8 +69,16 @@ function CodeEditor() {
     });
 
     const updateActiveUsers = () => {
-      const userCount = provider.awareness.getStates().size;
-      setActiveUsers(userCount);
+      const awarenessStates = Array.from(
+        provider.awareness.getStates().values()
+      );
+
+      const userNames = awarenessStates
+        .map((state) => state.user?.name)
+        .filter(Boolean);
+
+      setActiveUsers(awarenessStates.length);
+      setActiveUserNames(userNames);
     };
 
     awarenessChangeHandlerRef.current = updateActiveUsers;
@@ -337,6 +346,13 @@ function CodeEditor() {
         <span className="active-users-count">
           Users: {activeUsers}
         </span>
+
+        {/* Active-user names */}
+        {activeUserNames.length > 0 && (
+          <span className="active-user-names">
+            {activeUserNames.join(", ")}
+          </span>
+        )}
 
         {/* Yjs connection status */}
         <span className={`connection-status ${connectionStatus}`}>
