@@ -22,9 +22,10 @@ exports.createRoom = async (req, res) => {
     });
   }
 };
+
 exports.inviteUser = async (req, res) => {
   try {
-    const { roomId, email } = req.body;
+    const { roomId, email, role } = req.body;
 
     // Find room
     const room = await Room.findOne({ roomId });
@@ -44,8 +45,31 @@ exports.inviteUser = async (req, res) => {
       });
     }
 
-    // Add user to invitedUsers array
-    room.invitedUsers.push(user._id);
+    // Validate role
+    const validRoles = ["viewer", "editor"];
+
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({
+        message: "Invalid role. Use viewer or editor.",
+      });
+    }
+
+    // Prevent duplicate invitations
+    const alreadyInvited = room.invitedUsers.some(
+      (member) => member.user.toString() === user._id.toString()
+    );
+
+    if (alreadyInvited) {
+      return res.status(400).json({
+        message: "User is already invited",
+      });
+    }
+
+    // Add user with role
+    room.invitedUsers.push({
+      user: user._id,
+      role: role || "viewer",
+    });
 
     await room.save();
 
@@ -60,12 +84,13 @@ exports.inviteUser = async (req, res) => {
     });
   }
 };
+
 exports.getMyRooms = async (req, res) => {
   try {
     const { ownerId } = req.params;
 
     const rooms = await Room.find({ ownerId }).populate(
-      "invitedUsers",
+      "invitedUsers.user",
       "name email"
     );
 
