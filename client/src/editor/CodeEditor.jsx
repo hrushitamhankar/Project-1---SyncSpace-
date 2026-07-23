@@ -36,6 +36,7 @@ function CodeEditor() {
   const documentRef = useRef(null);
   const editorRef = useRef(null);
   const awarenessChangeHandlerRef = useRef(null);
+  const editorDisposablesRef = useRef([]);
 
   const copyTimerRef = useRef(null);
   const shareTimerRef = useRef(null);
@@ -61,6 +62,16 @@ function CodeEditor() {
   const [shareFeedback, setShareFeedback] = useState("");
   const [downloadFeedback, setDownloadFeedback] = useState("");
 
+  const [cursorPosition, setCursorPosition] = useState({
+    lineNumber: 1,
+    column: 1,
+  });
+
+  const [documentStats, setDocumentStats] = useState({
+    lineCount: 1,
+    characterCount: 0,
+  });
+
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
 
@@ -76,6 +87,40 @@ function CodeEditor() {
     }
 
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
+
+    const updateDocumentStats = () => {
+      setDocumentStats({
+        lineCount: model.getLineCount(),
+        characterCount: model.getValueLength(),
+      });
+    };
+
+    const contentDisposable =
+      model.onDidChangeContent(updateDocumentStats);
+
+    const cursorDisposable =
+      editor.onDidChangeCursorPosition((event) => {
+        setCursorPosition({
+          lineNumber: event.position.lineNumber,
+          column: event.position.column,
+        });
+      });
+
+    editorDisposablesRef.current = [
+      contentDisposable,
+      cursorDisposable,
+    ];
+
+    updateDocumentStats();
+
+    const initialPosition = editor.getPosition();
+
+    if (initialPosition) {
+      setCursorPosition({
+        lineNumber: initialPosition.lineNumber,
+        column: initialPosition.column,
+      });
+    }
 
     const yDocument = new Y.Doc();
 
@@ -162,26 +207,18 @@ function CodeEditor() {
     try {
       await navigator.clipboard.writeText(editor.getValue());
       setCopyFeedback("Copied!");
-
-      if (copyTimerRef.current) {
-        window.clearTimeout(copyTimerRef.current);
-      }
-
-      copyTimerRef.current = window.setTimeout(() => {
-        setCopyFeedback("");
-      }, 2000);
     } catch (error) {
       console.error("Unable to copy editor code:", error);
       setCopyFeedback("Copy failed");
-
-      if (copyTimerRef.current) {
-        window.clearTimeout(copyTimerRef.current);
-      }
-
-      copyTimerRef.current = window.setTimeout(() => {
-        setCopyFeedback("");
-      }, 2000);
     }
+
+    if (copyTimerRef.current) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopyFeedback("");
+    }, 2000);
   };
 
   const handleDownloadCode = () => {
@@ -215,26 +252,18 @@ function CodeEditor() {
       }, 0);
 
       setDownloadFeedback("Downloaded!");
-
-      if (downloadTimerRef.current) {
-        window.clearTimeout(downloadTimerRef.current);
-      }
-
-      downloadTimerRef.current = window.setTimeout(() => {
-        setDownloadFeedback("");
-      }, 2000);
     } catch (error) {
       console.error("Unable to download editor code:", error);
       setDownloadFeedback("Failed");
-
-      if (downloadTimerRef.current) {
-        window.clearTimeout(downloadTimerRef.current);
-      }
-
-      downloadTimerRef.current = window.setTimeout(() => {
-        setDownloadFeedback("");
-      }, 2000);
     }
+
+    if (downloadTimerRef.current) {
+      window.clearTimeout(downloadTimerRef.current);
+    }
+
+    downloadTimerRef.current = window.setTimeout(() => {
+      setDownloadFeedback("");
+    }, 2000);
   };
 
   const handleShareRoom = async () => {
@@ -244,36 +273,35 @@ function CodeEditor() {
     try {
       await navigator.clipboard.writeText(shareUrl.toString());
       setShareFeedback("Link copied!");
-
-      if (shareTimerRef.current) {
-        window.clearTimeout(shareTimerRef.current);
-      }
-
-      shareTimerRef.current = window.setTimeout(() => {
-        setShareFeedback("");
-      }, 2000);
     } catch (error) {
       console.error("Unable to copy room link:", error);
       setShareFeedback("Copy failed");
-
-      if (shareTimerRef.current) {
-        window.clearTimeout(shareTimerRef.current);
-      }
-
-      shareTimerRef.current = window.setTimeout(() => {
-        setShareFeedback("");
-      }, 2000);
     }
+
+    if (shareTimerRef.current) {
+      window.clearTimeout(shareTimerRef.current);
+    }
+
+    shareTimerRef.current = window.setTimeout(() => {
+      setShareFeedback("");
+    }, 2000);
   };
 
   useEffect(() => {
     return () => {
       const provider = providerRef.current;
-      const awarenessHandler = awarenessChangeHandlerRef.current;
+      const awarenessHandler =
+        awarenessChangeHandlerRef.current;
 
       if (provider && awarenessHandler) {
         provider.awareness.off("change", awarenessHandler);
       }
+
+      editorDisposablesRef.current.forEach((disposable) => {
+        disposable.dispose();
+      });
+
+      editorDisposablesRef.current = [];
 
       if (copyTimerRef.current) {
         window.clearTimeout(copyTimerRef.current);
@@ -312,7 +340,9 @@ function CodeEditor() {
           <select
             id="language-select"
             value={language}
-            onChange={(event) => setLanguage(event.target.value)}
+            onChange={(event) =>
+              setLanguage(event.target.value)
+            }
           >
             <option value="javascript">JavaScript</option>
             <option value="typescript">TypeScript</option>
@@ -364,7 +394,9 @@ function CodeEditor() {
             id="line-numbers-select"
             value={showLineNumbers ? "show" : "hide"}
             onChange={(event) =>
-              setShowLineNumbers(event.target.value === "show")
+              setShowLineNumbers(
+                event.target.value === "show"
+              )
             }
           >
             <option value="show">Show</option>
@@ -394,7 +426,9 @@ function CodeEditor() {
             id="minimap-select"
             value={showMinimap ? "show" : "hide"}
             onChange={(event) =>
-              setShowMinimap(event.target.value === "show")
+              setShowMinimap(
+                event.target.value === "show"
+              )
             }
           >
             <option value="show">Show</option>
@@ -426,7 +460,9 @@ function CodeEditor() {
             id="read-only-select"
             value={readOnly ? "readonly" : "editable"}
             onChange={(event) =>
-              setReadOnly(event.target.value === "readonly")
+              setReadOnly(
+                event.target.value === "readonly"
+              )
             }
           >
             <option value="editable">Editable</option>
@@ -441,7 +477,9 @@ function CodeEditor() {
             id="file-name-input"
             type="text"
             value={fileName}
-            onChange={(event) => setFileName(event.target.value)}
+            onChange={(event) =>
+              setFileName(event.target.value)
+            }
             placeholder="main.js"
           />
         </div>
@@ -450,7 +488,6 @@ function CodeEditor() {
           type="button"
           className="copy-code-button"
           onClick={handleCopyCode}
-          title="Copy all editor code"
         >
           {copyFeedback || "Copy"}
         </button>
@@ -459,7 +496,6 @@ function CodeEditor() {
           type="button"
           className="copy-code-button download-code-button"
           onClick={handleDownloadCode}
-          title="Download editor code as a file"
         >
           {downloadFeedback || "Download"}
         </button>
@@ -469,11 +505,6 @@ function CodeEditor() {
           className="reset-editor-button"
           onClick={handleResetEditor}
           disabled={readOnly}
-          title={
-            readOnly
-              ? "Reset is disabled in read-only mode"
-              : "Reset editor code"
-          }
         >
           Reset
         </button>
@@ -482,7 +513,6 @@ function CodeEditor() {
           type="button"
           className="copy-code-button share-room-button"
           onClick={handleShareRoom}
-          title="Copy the collaborative room link"
         >
           {shareFeedback || "Share Room"}
         </button>
@@ -531,7 +561,9 @@ function CodeEditor() {
           ))}
         </div>
 
-        <span className={`connection-status ${connectionStatus}`}>
+        <span
+          className={`connection-status ${connectionStatus}`}
+        >
           Yjs: {connectionStatus}
         </span>
       </div>
@@ -558,6 +590,39 @@ function CodeEditor() {
             insertSpaces: true,
           }}
         />
+      </div>
+
+      <div
+        className="editor-status-bar"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          minHeight: "30px",
+          padding: "5px 12px",
+          background: "#18181b",
+          borderTop: "1px solid #3f3f46",
+          color: "#d4d4d8",
+          fontSize: "12px",
+          whiteSpace: "nowrap",
+          overflowX: "auto",
+        }}
+      >
+        <span>{fileName.trim() || "Untitled"}</span>
+
+        <span>
+          Ln {cursorPosition.lineNumber}, Col{" "}
+          {cursorPosition.column}
+        </span>
+
+        <span>Lines: {documentStats.lineCount}</span>
+
+        <span>
+          Characters: {documentStats.characterCount}
+        </span>
+
+        <span>Room: {ROOM_NAME}</span>
       </div>
     </div>
   );
