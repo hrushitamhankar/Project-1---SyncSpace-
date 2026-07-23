@@ -287,6 +287,27 @@ function CodeEditor() {
     }, 2000);
   };
 
+  const handleFindReplace = async () => {
+    const editor = editorRef.current;
+
+    if (!editor) {
+      return;
+    }
+
+    editor.focus();
+
+    const replaceAction = editor.getAction(
+      "editor.action.startFindReplaceAction"
+    );
+
+    if (replaceAction) {
+      await replaceAction.run();
+      return;
+    }
+
+    editor.trigger("toolbar", "actions.find", null);
+  };
+
   useEffect(() => {
     return () => {
       const provider = providerRef.current;
@@ -483,6 +504,15 @@ function CodeEditor() {
             placeholder="main.js"
           />
         </div>
+
+        <button
+          type="button"
+          className="copy-code-button"
+          onClick={handleFindReplace}
+          title="Open Find and Replace"
+        >
+          Find / Replace
+        </button>
 
         <button
           type="button"
