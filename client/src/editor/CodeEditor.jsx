@@ -28,6 +28,7 @@ function CodeEditor() {
   const documentRef = useRef(null);
   const editorRef = useRef(null);
   const awarenessChangeHandlerRef = useRef(null);
+  const copyTimerRef = useRef(null);
   const shareTimerRef = useRef(null);
 
   const [connectionStatus, setConnectionStatus] =
@@ -44,6 +45,7 @@ function CodeEditor() {
   const [fileName, setFileName] = useState("main.js");
   const [activeUsers, setActiveUsers] = useState(0);
   const [activeUserDetails, setActiveUserDetails] = useState([]);
+  const [copyFeedback, setCopyFeedback] = useState("");
   const [shareFeedback, setShareFeedback] = useState("");
 
   const handleEditorMount = (editor, monaco) => {
@@ -140,13 +142,32 @@ function CodeEditor() {
     const editor = editorRef.current;
 
     if (!editor) {
+      setCopyFeedback("Copy failed");
       return;
     }
 
     try {
       await navigator.clipboard.writeText(editor.getValue());
+      setCopyFeedback("Copied!");
+
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopyFeedback("");
+      }, 2000);
     } catch (error) {
       console.error("Unable to copy editor code:", error);
+      setCopyFeedback("Copy failed");
+
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopyFeedback("");
+      }, 2000);
     }
   };
 
@@ -168,6 +189,14 @@ function CodeEditor() {
     } catch (error) {
       console.error("Unable to copy room link:", error);
       setShareFeedback("Copy failed");
+
+      if (shareTimerRef.current) {
+        window.clearTimeout(shareTimerRef.current);
+      }
+
+      shareTimerRef.current = window.setTimeout(() => {
+        setShareFeedback("");
+      }, 2000);
     }
   };
 
@@ -178,6 +207,10 @@ function CodeEditor() {
 
       if (provider && awarenessHandler) {
         provider.awareness.off("change", awarenessHandler);
+      }
+
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
       }
 
       if (shareTimerRef.current) {
@@ -193,6 +226,7 @@ function CodeEditor() {
       documentRef.current = null;
       editorRef.current = null;
       awarenessChangeHandlerRef.current = null;
+      copyTimerRef.current = null;
       shareTimerRef.current = null;
     };
   }, []);
@@ -344,8 +378,9 @@ function CodeEditor() {
           type="button"
           className="copy-code-button"
           onClick={handleCopyCode}
+          title="Copy all editor code"
         >
-          Copy
+          {copyFeedback || "Copy"}
         </button>
 
         <button
@@ -353,6 +388,11 @@ function CodeEditor() {
           className="reset-editor-button"
           onClick={handleResetEditor}
           disabled={readOnly}
+          title={
+            readOnly
+              ? "Reset is disabled in read-only mode"
+              : "Reset editor code"
+          }
         >
           Reset
         </button>
