@@ -18,6 +18,7 @@ function CodeEditor() {
   const providerRef = useRef(null);
   const documentRef = useRef(null);
   const editorRef = useRef(null);
+  const awarenessChangeHandlerRef = useRef(null);
 
   const [connectionStatus, setConnectionStatus] =
     useState("connecting");
@@ -30,7 +31,9 @@ function CodeEditor() {
   const [showMinimap, setShowMinimap] = useState(true);
   const [tabSize, setTabSize] = useState(2);
   const [readOnly, setReadOnly] = useState(false);
-const [fileName, setFileName] = useState("main.js");
+  const [fileName, setFileName] = useState("main.js");
+  const [activeUsers, setActiveUsers] = useState(0);
+
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
 
@@ -63,6 +66,16 @@ const [fileName, setFileName] = useState("main.js");
       name: `User-${Math.floor(Math.random() * 900 + 100)}`,
       color: `hsl(${Math.floor(Math.random() * 360)}, 75%, 55%)`,
     });
+
+    const updateActiveUsers = () => {
+      const userCount = provider.awareness.getStates().size;
+      setActiveUsers(userCount);
+    };
+
+    awarenessChangeHandlerRef.current = updateActiveUsers;
+
+    provider.awareness.on("change", updateActiveUsers);
+    updateActiveUsers();
 
     provider.on("status", ({ status }) => {
       setConnectionStatus(status);
@@ -123,6 +136,13 @@ const [fileName, setFileName] = useState("main.js");
 
   useEffect(() => {
     return () => {
+      const provider = providerRef.current;
+      const awarenessHandler = awarenessChangeHandlerRef.current;
+
+      if (provider && awarenessHandler) {
+        provider.awareness.off("change", awarenessHandler);
+      }
+
       bindingRef.current?.destroy();
       providerRef.current?.destroy();
       documentRef.current?.destroy();
@@ -131,6 +151,7 @@ const [fileName, setFileName] = useState("main.js");
       providerRef.current = null;
       documentRef.current = null;
       editorRef.current = null;
+      awarenessChangeHandlerRef.current = null;
     };
   }, []);
 
@@ -191,7 +212,7 @@ const [fileName, setFileName] = useState("main.js");
           </select>
         </div>
 
-        {/* Line-numbers selector */}
+        {/* Line-number selector */}
         <div className="toolbar-control">
           <label htmlFor="line-numbers-select">Lines:</label>
 
@@ -273,7 +294,21 @@ const [fileName, setFileName] = useState("main.js");
           </select>
         </div>
 
-        {/* Copy code button */}
+        {/* File-name input */}
+        <div className="toolbar-control">
+          <label htmlFor="file-name-input">File:</label>
+
+          <input
+            id="file-name-input"
+            type="text"
+            value={fileName}
+            onChange={(event) => setFileName(event.target.value)}
+            placeholder="main.js"
+            aria-label="Editor file name"
+          />
+        </div>
+
+        {/* Copy button */}
         <button
           type="button"
           className="copy-code-button"
@@ -283,7 +318,7 @@ const [fileName, setFileName] = useState("main.js");
           Copy
         </button>
 
-        {/* Reset editor button */}
+        {/* Reset button */}
         <button
           type="button"
           className="reset-editor-button"
@@ -297,18 +332,12 @@ const [fileName, setFileName] = useState("main.js");
         >
           Reset
         </button>
-<div className="toolbar-control">
-  <label htmlFor="file-name-input">File:</label>
 
-  <input
-    id="file-name-input"
-    type="text"
-    value={fileName}
-    onChange={(event) => setFileName(event.target.value)}
-    placeholder="main.js"
-    aria-label="Editor file name"
-  />
-</div>
+        {/* Active-users count */}
+        <span className="active-users-count">
+          Users: {activeUsers}
+        </span>
+
         {/* Yjs connection status */}
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
@@ -318,7 +347,7 @@ const [fileName, setFileName] = useState("main.js");
       <div className="editor-container">
         <Editor
           height="100%"
-        path="file:///syncspace/main.js"
+          path="file:///syncspace/main.js"
           language={language}
           defaultValue=""
           theme={theme}
