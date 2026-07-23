@@ -33,12 +33,11 @@ function CodeEditor() {
   const [readOnly, setReadOnly] = useState(false);
   const [fileName, setFileName] = useState("main.js");
   const [activeUsers, setActiveUsers] = useState(0);
-  const [activeUserNames, setActiveUserNames] = useState([]);
+  const [activeUserDetails, setActiveUserDetails] = useState([]);
 
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Prevent accidental double binding.
     if (bindingRef.current) {
       return;
     }
@@ -50,7 +49,6 @@ function CodeEditor() {
       return;
     }
 
-    // Keep Monaco and Yjs line endings identical.
     model.setEOL(monaco.editor.EndOfLineSequence.LF);
 
     const yDocument = new Y.Doc();
@@ -69,16 +67,16 @@ function CodeEditor() {
     });
 
     const updateActiveUsers = () => {
-      const awarenessStates = Array.from(
-        provider.awareness.getStates().values()
-      );
+      const users = Array.from(
+        provider.awareness.getStates().entries()
+      ).map(([clientId, state]) => ({
+        clientId,
+        name: state.user?.name || `User-${clientId}`,
+        color: state.user?.color || "#94a3b8",
+      }));
 
-      const userNames = awarenessStates
-        .map((state) => state.user?.name)
-        .filter(Boolean);
-
-      setActiveUsers(awarenessStates.length);
-      setActiveUserNames(userNames);
+      setActiveUsers(users.length);
+      setActiveUserDetails(users);
     };
 
     awarenessChangeHandlerRef.current = updateActiveUsers;
@@ -134,10 +132,8 @@ function CodeEditor() {
       return;
     }
 
-    const code = editor.getValue();
-
     try {
-      await navigator.clipboard.writeText(code);
+      await navigator.clipboard.writeText(editor.getValue());
     } catch (error) {
       console.error("Unable to copy editor code:", error);
     }
@@ -167,10 +163,8 @@ function CodeEditor() {
   return (
     <div className="code-editor-wrapper">
       <div className="editor-toolbar">
-        {/* Language selector */}
         <div className="toolbar-control">
           <label htmlFor="language-select">Language:</label>
-
           <select
             id="language-select"
             value={language}
@@ -186,10 +180,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Theme selector */}
         <div className="toolbar-control">
           <label htmlFor="theme-select">Theme:</label>
-
           <select
             id="theme-select"
             value={theme}
@@ -201,10 +193,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Font-size selector */}
         <div className="toolbar-control">
           <label htmlFor="font-size-select">Font:</label>
-
           <select
             id="font-size-select"
             value={fontSize}
@@ -221,10 +211,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Line-number selector */}
         <div className="toolbar-control">
           <label htmlFor="line-numbers-select">Lines:</label>
-
           <select
             id="line-numbers-select"
             value={showLineNumbers ? "show" : "hide"}
@@ -237,10 +225,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Word-wrap selector */}
         <div className="toolbar-control">
           <label htmlFor="word-wrap-select">Wrap:</label>
-
           <select
             id="word-wrap-select"
             value={wordWrap ? "on" : "off"}
@@ -253,10 +239,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Minimap selector */}
         <div className="toolbar-control">
           <label htmlFor="minimap-select">Minimap:</label>
-
           <select
             id="minimap-select"
             value={showMinimap ? "show" : "hide"}
@@ -269,10 +253,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Tab-size selector */}
         <div className="toolbar-control">
           <label htmlFor="tab-size-select">Tab:</label>
-
           <select
             id="tab-size-select"
             value={tabSize}
@@ -287,10 +269,8 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* Read-only selector */}
         <div className="toolbar-control">
           <label htmlFor="read-only-select">Mode:</label>
-
           <select
             id="read-only-select"
             value={readOnly ? "readonly" : "editable"}
@@ -303,58 +283,78 @@ function CodeEditor() {
           </select>
         </div>
 
-        {/* File-name input */}
         <div className="toolbar-control">
           <label htmlFor="file-name-input">File:</label>
-
           <input
             id="file-name-input"
             type="text"
             value={fileName}
             onChange={(event) => setFileName(event.target.value)}
             placeholder="main.js"
-            aria-label="Editor file name"
           />
         </div>
 
-        {/* Copy button */}
         <button
           type="button"
           className="copy-code-button"
           onClick={handleCopyCode}
-          title="Copy all editor code"
         >
           Copy
         </button>
 
-        {/* Reset button */}
         <button
           type="button"
           className="reset-editor-button"
           onClick={handleResetEditor}
           disabled={readOnly}
-          title={
-            readOnly
-              ? "Reset is disabled in read-only mode"
-              : "Reset editor code"
-          }
         >
           Reset
         </button>
 
-        {/* Active-users count */}
         <span className="active-users-count">
           Users: {activeUsers}
         </span>
 
-        {/* Active-user names */}
-        {activeUserNames.length > 0 && (
-          <span className="active-user-names">
-            {activeUserNames.join(", ")}
-          </span>
-        )}
+        <div
+          className="active-user-presence"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            flexWrap: "wrap",
+          }}
+        >
+          {activeUserDetails.map((user) => (
+            <span
+              key={user.clientId}
+              title={`${user.name} is active`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 8px",
+                border: "1px solid #4b5563",
+                borderRadius: "999px",
+                fontSize: "12px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: "9px",
+                  height: "9px",
+                  borderRadius: "50%",
+                  backgroundColor: user.color,
+                  flexShrink: 0,
+                }}
+              />
 
-        {/* Yjs connection status */}
+              {user.name}
+            </span>
+          ))}
+        </div>
+
         <span className={`connection-status ${connectionStatus}`}>
           Yjs: {connectionStatus}
         </span>
