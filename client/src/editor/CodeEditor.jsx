@@ -3,6 +3,7 @@ import Editor from "@monaco-editor/react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
+import "./CodeEditor.css";
 
 const STARTER_CODE = `function greet(name) {
   console.log("Hello, " + name);
@@ -21,9 +22,7 @@ const getRoomName = () => {
 };
 
 const sanitizeFileName = (name) => {
-  const cleanedName = name
-    .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_");
+  const cleanedName = name.trim().replace(/[<>:"/\\|?*]/g, "_");
 
   return cleanedName || "main.js";
 };
@@ -54,6 +53,7 @@ function CodeEditor() {
   const [tabSize, setTabSize] = useState(2);
   const [readOnly, setReadOnly] = useState(false);
   const [fileName, setFileName] = useState("main.js");
+  const [showOptions, setShowOptions] = useState(false);
 
   const [activeUsers, setActiveUsers] = useState(0);
   const [activeUserDetails, setActiveUserDetails] = useState([]);
@@ -71,6 +71,13 @@ function CodeEditor() {
     lineCount: 1,
     characterCount: 0,
   });
+
+  const shellThemeClass =
+    theme === "vs"
+      ? "light-shell"
+      : theme === "hc-black"
+        ? "contrast-shell"
+        : "dark-shell";
 
   const handleEditorMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -309,7 +316,17 @@ function CodeEditor() {
   };
 
   useEffect(() => {
+    const handleEscapeKey = (event) => {
+      if (event.key === "Escape") {
+        setShowOptions(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscapeKey);
+
     return () => {
+      window.removeEventListener("keydown", handleEscapeKey);
+
       const provider = providerRef.current;
       const awarenessHandler =
         awarenessChangeHandlerRef.current;
@@ -345,7 +362,6 @@ function CodeEditor() {
       documentRef.current = null;
       editorRef.current = null;
       awarenessChangeHandlerRef.current = null;
-
       copyTimerRef.current = null;
       shareTimerRef.current = null;
       downloadTimerRef.current = null;
@@ -353,249 +369,332 @@ function CodeEditor() {
   }, []);
 
   return (
-    <div className="code-editor-wrapper">
-      <div className="editor-toolbar">
-        <div className="toolbar-control">
-          <label htmlFor="language-select">Language:</label>
+    <div
+      className={`code-editor-wrapper ${shellThemeClass}`}
+    >
+      <header className="workspace-header">
+        <div className="workspace-brand">
+          <div className="workspace-logo">S</div>
 
-          <select
-            id="language-select"
-            value={language}
-            onChange={(event) =>
-              setLanguage(event.target.value)
-            }
+          <div className="workspace-title-group">
+            <h1 className="workspace-title">
+              SyncSpace Editor
+            </h1>
+
+            <p className="workspace-subtitle">
+              Real-time collaborative coding workspace
+            </p>
+          </div>
+        </div>
+
+        <div className="workspace-header-status">
+          <span className="header-pill active-pill">
+            {activeUsers} active
+          </span>
+
+          <span
+            className={`header-pill connection-pill ${connectionStatus}`}
           >
-            <option value="javascript">JavaScript</option>
-            <option value="typescript">TypeScript</option>
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-            <option value="cpp">C++</option>
-            <option value="html">HTML</option>
-            <option value="css">CSS</option>
-          </select>
-        </div>
+            <span className="status-dot" />
+            {connectionStatus}
+          </span>
 
-        <div className="toolbar-control">
-          <label htmlFor="theme-select">Theme:</label>
-
-          <select
-            id="theme-select"
-            value={theme}
-            onChange={(event) => setTheme(event.target.value)}
+          <button
+            type="button"
+            className="options-menu-button"
+            onClick={() => setShowOptions((current) => !current)}
+            aria-label="Open editor options"
+            aria-expanded={showOptions}
+            title="Editor options"
           >
-            <option value="vs-dark">Dark</option>
-            <option value="vs">Light</option>
-            <option value="hc-black">High Contrast</option>
-          </select>
+            ⋮
+          </button>
         </div>
+      </header>
 
-        <div className="toolbar-control">
-          <label htmlFor="font-size-select">Font:</label>
-
-          <select
-            id="font-size-select"
-            value={fontSize}
-            onChange={(event) =>
-              setFontSize(Number(event.target.value))
-            }
-          >
-            <option value={12}>12px</option>
-            <option value={14}>14px</option>
-            <option value={16}>16px</option>
-            <option value={18}>18px</option>
-            <option value={20}>20px</option>
-            <option value={24}>24px</option>
-          </select>
-        </div>
-
-        <div className="toolbar-control">
-          <label htmlFor="line-numbers-select">Lines:</label>
-
-          <select
-            id="line-numbers-select"
-            value={showLineNumbers ? "show" : "hide"}
-            onChange={(event) =>
-              setShowLineNumbers(
-                event.target.value === "show"
-              )
-            }
-          >
-            <option value="show">Show</option>
-            <option value="hide">Hide</option>
-          </select>
-        </div>
-
-        <div className="toolbar-control">
-          <label htmlFor="word-wrap-select">Wrap:</label>
-
-          <select
-            id="word-wrap-select"
-            value={wordWrap ? "on" : "off"}
-            onChange={(event) =>
-              setWordWrap(event.target.value === "on")
-            }
-          >
-            <option value="off">Off</option>
-            <option value="on">On</option>
-          </select>
-        </div>
-
-        <div className="toolbar-control">
-          <label htmlFor="minimap-select">Minimap:</label>
-
-          <select
-            id="minimap-select"
-            value={showMinimap ? "show" : "hide"}
-            onChange={(event) =>
-              setShowMinimap(
-                event.target.value === "show"
-              )
-            }
-          >
-            <option value="show">Show</option>
-            <option value="hide">Hide</option>
-          </select>
-        </div>
-
-        <div className="toolbar-control">
-          <label htmlFor="tab-size-select">Tab:</label>
-
-          <select
-            id="tab-size-select"
-            value={tabSize}
-            onChange={(event) =>
-              setTabSize(Number(event.target.value))
-            }
-          >
-            <option value={2}>2 spaces</option>
-            <option value={4}>4 spaces</option>
-            <option value={6}>6 spaces</option>
-            <option value={8}>8 spaces</option>
-          </select>
-        </div>
-
-        <div className="toolbar-control">
-          <label htmlFor="read-only-select">Mode:</label>
-
-          <select
-            id="read-only-select"
-            value={readOnly ? "readonly" : "editable"}
-            onChange={(event) =>
-              setReadOnly(
-                event.target.value === "readonly"
-              )
-            }
-          >
-            <option value="editable">Editable</option>
-            <option value="readonly">Read Only</option>
-          </select>
-        </div>
-
-        <div className="toolbar-control">
-          <label htmlFor="file-name-input">File:</label>
-
-          <input
-            id="file-name-input"
-            type="text"
-            value={fileName}
-            onChange={(event) =>
-              setFileName(event.target.value)
-            }
-            placeholder="main.js"
-          />
-        </div>
-
-        <button
-          type="button"
-          className="copy-code-button"
-          onClick={handleFindReplace}
-          title="Open Find and Replace"
-        >
-          Find / Replace
-        </button>
-
-        <button
-          type="button"
-          className="copy-code-button"
-          onClick={handleCopyCode}
-        >
-          {copyFeedback || "Copy"}
-        </button>
-
-        <button
-          type="button"
-          className="copy-code-button download-code-button"
-          onClick={handleDownloadCode}
-        >
-          {downloadFeedback || "Download"}
-        </button>
-
-        <button
-          type="button"
-          className="reset-editor-button"
-          onClick={handleResetEditor}
-          disabled={readOnly}
-        >
-          Reset
-        </button>
-
-        <button
-          type="button"
-          className="copy-code-button share-room-button"
-          onClick={handleShareRoom}
-        >
-          {shareFeedback || "Share Room"}
-        </button>
-
-        <span className="active-users-count">
-          Users: {activeUsers}
+      <div className="file-tab-bar">
+        <span className="file-tab-icon" aria-hidden="true">
+          ▤
         </span>
-
-        <div
-          className="active-user-presence"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            flexWrap: "wrap",
-          }}
-        >
-          {activeUserDetails.map((user) => (
-            <span
-              key={user.clientId}
-              title={`${user.name} is active`}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "4px 8px",
-                border: "1px solid #4b5563",
-                borderRadius: "999px",
-                fontSize: "12px",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: "9px",
-                  height: "9px",
-                  borderRadius: "50%",
-                  backgroundColor: user.color,
-                  flexShrink: 0,
-                }}
-              />
-
-              {user.name}
-            </span>
-          ))}
-        </div>
 
         <span
-          className={`connection-status ${connectionStatus}`}
+          className="file-tab-name"
+          title={fileName.trim() || "Untitled"}
         >
-          Yjs: {connectionStatus}
+          {fileName.trim() || "Untitled"}
         </span>
+
+        <span className="file-tab-language">
+          {language}
+        </span>
+      </div>
+
+      {showOptions && (
+        <section
+          className="editor-options-menu"
+          aria-label="Editor options"
+        >
+          <div className="options-menu-header">
+            <div>
+              <h2>Editor options</h2>
+              <p>Settings and file actions</p>
+            </div>
+
+            <button
+              type="button"
+              className="options-close-button"
+              onClick={() => setShowOptions(false)}
+              aria-label="Close editor options"
+              title="Close options"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="options-controls-grid">
+            <div className="toolbar-control">
+              <label htmlFor="language-select">Language</label>
+
+              <select
+                id="language-select"
+                value={language}
+                onChange={(event) =>
+                  setLanguage(event.target.value)
+                }
+              >
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="cpp">C++</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="theme-select">Theme</label>
+
+              <select
+                id="theme-select"
+                value={theme}
+                onChange={(event) =>
+                  setTheme(event.target.value)
+                }
+              >
+                <option value="vs-dark">Dark</option>
+                <option value="vs">Light</option>
+                <option value="hc-black">
+                  High Contrast
+                </option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="font-size-select">Font</label>
+
+              <select
+                id="font-size-select"
+                value={fontSize}
+                onChange={(event) =>
+                  setFontSize(Number(event.target.value))
+                }
+              >
+                <option value={12}>12 px</option>
+                <option value={14}>14 px</option>
+                <option value={16}>16 px</option>
+                <option value={18}>18 px</option>
+                <option value={20}>20 px</option>
+                <option value={24}>24 px</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="tab-size-select">Tab size</label>
+
+              <select
+                id="tab-size-select"
+                value={tabSize}
+                onChange={(event) =>
+                  setTabSize(Number(event.target.value))
+                }
+              >
+                <option value={2}>2 spaces</option>
+                <option value={4}>4 spaces</option>
+                <option value={6}>6 spaces</option>
+                <option value={8}>8 spaces</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="line-numbers-select">
+                Line numbers
+              </label>
+
+              <select
+                id="line-numbers-select"
+                value={showLineNumbers ? "show" : "hide"}
+                onChange={(event) =>
+                  setShowLineNumbers(
+                    event.target.value === "show"
+                  )
+                }
+              >
+                <option value="show">Show</option>
+                <option value="hide">Hide</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="word-wrap-select">
+                Word wrap
+              </label>
+
+              <select
+                id="word-wrap-select"
+                value={wordWrap ? "on" : "off"}
+                onChange={(event) =>
+                  setWordWrap(event.target.value === "on")
+                }
+              >
+                <option value="off">Off</option>
+                <option value="on">On</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="minimap-select">Minimap</label>
+
+              <select
+                id="minimap-select"
+                value={showMinimap ? "show" : "hide"}
+                onChange={(event) =>
+                  setShowMinimap(
+                    event.target.value === "show"
+                  )
+                }
+              >
+                <option value="show">Show</option>
+                <option value="hide">Hide</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control">
+              <label htmlFor="read-only-select">Mode</label>
+
+              <select
+                id="read-only-select"
+                value={readOnly ? "readonly" : "editable"}
+                onChange={(event) =>
+                  setReadOnly(
+                    event.target.value === "readonly"
+                  )
+                }
+              >
+                <option value="editable">Editable</option>
+                <option value="readonly">Read only</option>
+              </select>
+            </div>
+
+            <div className="toolbar-control file-control">
+              <label htmlFor="file-name-input">File name</label>
+
+              <input
+                id="file-name-input"
+                type="text"
+                value={fileName}
+                onChange={(event) =>
+                  setFileName(event.target.value)
+                }
+                placeholder="main.js"
+              />
+            </div>
+          </div>
+
+          <div className="options-actions-grid">
+            <button
+              type="button"
+              className="editor-action-button"
+              onClick={handleFindReplace}
+              title="Open Find and Replace"
+            >
+              <span className="button-icon">⌕</span>
+              Find
+            </button>
+
+            <button
+              type="button"
+              className="editor-action-button"
+              onClick={handleCopyCode}
+              title="Copy editor code"
+            >
+              <span className="button-icon">⧉</span>
+              {copyFeedback || "Copy"}
+            </button>
+
+            <button
+              type="button"
+              className="editor-action-button"
+              onClick={handleDownloadCode}
+              title="Download editor code"
+            >
+              <span className="button-icon">⇩</span>
+              {downloadFeedback || "Download"}
+            </button>
+
+            <button
+              type="button"
+              className="editor-action-button"
+              onClick={handleResetEditor}
+              disabled={readOnly}
+              title="Reset editor code"
+            >
+              <span className="button-icon">↺</span>
+              Reset
+            </button>
+
+            <button
+              type="button"
+              className="editor-action-button primary-action"
+              onClick={handleShareRoom}
+              title="Copy collaborative room link"
+            >
+              <span className="button-icon">↗</span>
+              {shareFeedback || "Share room"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      <div className="presence-strip">
+        <span className="presence-label">
+          Collaborators
+        </span>
+
+        {activeUserDetails.length > 0 ? (
+          <div className="active-user-presence">
+            {activeUserDetails.map((user) => (
+              <span
+                key={user.clientId}
+                className="active-user-chip"
+                title={`${user.name} is active`}
+              >
+                <span
+                  className="active-user-dot"
+                  style={{
+                    "--user-color": user.color,
+                  }}
+                />
+
+                {user.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="no-collaborators">
+            Waiting for collaborators…
+          </span>
+        )}
       </div>
 
       <div className="editor-container">
@@ -618,42 +717,70 @@ function CodeEditor() {
             scrollBeyondLastLine: false,
             tabSize,
             insertSpaces: true,
+
+            // Keep IntelliSense, autocomplete, hover and parameter hints visible.
+            fixedOverflowWidgets: true,
+            quickSuggestions: {
+              other: true,
+              comments: false,
+              strings: true,
+            },
+            suggestOnTriggerCharacters: true,
+            acceptSuggestionOnEnter: "on",
+            tabCompletion: "on",
+            wordBasedSuggestions: "currentDocument",
+            parameterHints: {
+              enabled: true,
+            },
+            hover: {
+              enabled: true,
+              delay: 300,
+            },
+            snippetSuggestions: "top",
+            suggest: {
+              showWords: true,
+              showSnippets: true,
+              showFunctions: true,
+              showMethods: true,
+              showVariables: true,
+              showClasses: true,
+              showKeywords: true,
+            },
+            renderLineHighlight: "all",
+            smoothScrolling: true,
+            cursorBlinking: "smooth",
+
+            padding: {
+              top: 14,
+            },
           }}
         />
       </div>
 
-      <div
-        className="editor-status-bar"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          minHeight: "30px",
-          padding: "5px 12px",
-          background: "#18181b",
-          borderTop: "1px solid #3f3f46",
-          color: "#d4d4d8",
-          fontSize: "12px",
-          whiteSpace: "nowrap",
-          overflowX: "auto",
-        }}
-      >
-        <span>{fileName.trim() || "Untitled"}</span>
-
-        <span>
-          Ln {cursorPosition.lineNumber}, Col{" "}
-          {cursorPosition.column}
+      <footer className="editor-status-bar">
+        <span className="status-file-name">
+          {fileName.trim() || "Untitled"}
         </span>
 
-        <span>Lines: {documentStats.lineCount}</span>
+        <div className="status-items">
+          <span>
+            Ln {cursorPosition.lineNumber}, Col{" "}
+            {cursorPosition.column}
+          </span>
 
-        <span>
-          Characters: {documentStats.characterCount}
-        </span>
+          <span>Lines: {documentStats.lineCount}</span>
 
-        <span>Room: {ROOM_NAME}</span>
-      </div>
+          <span>
+            Characters: {documentStats.characterCount}
+          </span>
+
+          <span>{language}</span>
+
+          <span className="status-room">
+            Room: {ROOM_NAME}
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }
