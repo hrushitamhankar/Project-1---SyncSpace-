@@ -206,20 +206,30 @@ export default function initializeSocket(io) {
 
             const roomId = data.roomId.trim();
 
+            // Validate room ID
             if (!roomId) {
 
                 socket.emit("room-error", {
-                    message: "Room ID cannot be empty"
+                    message: "Room ID cannot be empty."
                 });
+
+                console.warn(
+                    `[WARNING] ${socket.id} sent an empty room ID for awareness update`
+                );
 
                 return;
             }
 
+            // Ensure socket belongs to the room
             if (!socket.rooms.has(roomId)) {
 
                 socket.emit("room-error", {
-                    message: "You are not a member of this room"
+                    message: "Join the room before sending awareness updates."
                 });
+
+                console.warn(
+                    `[WARNING] ${socket.id} attempted awareness update without joining room ${roomId}`
+                );
 
                 return;
             }
@@ -244,8 +254,7 @@ export default function initializeSocket(io) {
             );
 
             console.log(
-                `[AWARENESS] ${socket.id} -> ${roomId}`,
-                awareness
+                `[AWARENESS] ${socket.id} updated awareness in room ${roomId}`
             );
 
             // Relay awareness to everyone except sender
@@ -261,7 +270,9 @@ export default function initializeSocket(io) {
          */
         socket.on("disconnect", () => {
 
-            console.log(`[DISCONNECT] ${socket.id}`);
+            console.log(
+                `[DISCONNECT] ${socket.id} disconnected`
+            );
 
             const leftRooms = removeSocketFromAllRooms(socket.id);
 
@@ -274,7 +285,7 @@ export default function initializeSocket(io) {
                 });
 
                 console.log(
-                    `[CLEANUP] Removed ${socket.id} from ${roomId}`
+                    `[CLEANUP] Removed ${socket.id} from room ${roomId}`
                 );
 
             });
