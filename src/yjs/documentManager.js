@@ -1,35 +1,36 @@
-const Y = require("yjs");
+import * as Y from "yjs";
 
 const documents = new Map();
 
 /**
- * Get existing Y.Doc or create a new one.
+ * Returns an existing Y.Doc or creates a new one.
  */
-function getDocument(roomId) {
+export function getDocument(roomId) {
     if (!documents.has(roomId)) {
-        documents.set(roomId, new Y.Doc());
-        console.log(`[YJS] Created document: ${roomId}`);
+        const doc = new Y.Doc();
+        documents.set(roomId, doc);
+
+        console.log(`[YJS] Created document for room: ${roomId}`);
     }
 
     return documents.get(roomId);
 }
 
 /**
- * Remove a room document.
+ * Remove document when room is destroyed.
  */
-function removeDocument(roomId) {
+export function removeDocument(roomId) {
+    if (!documents.has(roomId)) return;
+
+    documents.get(roomId).destroy();
     documents.delete(roomId);
+
+    console.log(`[YJS] Removed document: ${roomId}`);
 }
 
 /**
- * Get all active documents.
+ * Returns every active document.
  */
-function getDocuments() {
+export function getDocuments() {
     return documents;
 }
-
-module.exports = {
-    getDocument,
-    removeDocument,
-    getDocuments
-};
