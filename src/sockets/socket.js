@@ -225,6 +225,13 @@
 
                 const roomId = data.roomId.trim();
 
+                // B2: Ensure Yjs room exists before processing awareness
+                const { awareness: yjsAwareness } = initializeRoom(roomId);
+
+                console.log(`[YJS] Awareness ready for room: ${roomId}`, {
+                initialized: !!yjsAwareness
+        });
+
                 if (!roomId) {
 
                     socket.emit("room-error", {
