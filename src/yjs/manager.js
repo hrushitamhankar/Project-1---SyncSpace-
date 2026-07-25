@@ -1,6 +1,9 @@
     import { getDocument } from "./documentManager.js";
     import { getAwareness } from "./awareness.js";
 
+    import { removeDocument } from "./documentManager.js";
+    import { removeAwareness } from "./awareness.js";
+
     /**
      * Initialize a Yjs room.
      *
@@ -28,3 +31,13 @@
             awareness: getAwareness(roomId)
         };
     }
+
+    /**
+ * Destroy all Yjs resources for a room.
+ */
+export function destroyRoom(roomId) {
+    removeAwareness(roomId);
+    removeDocument(roomId);
+
+    console.log(`[YJS] Destroyed room: ${roomId}`);
+}

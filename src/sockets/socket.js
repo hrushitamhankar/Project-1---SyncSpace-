@@ -11,7 +11,8 @@
     } from "./awareness.js";
 
     import {
-    initializeRoom
+    initializeRoom,
+    destroyRoom
     } from "../yjs/manager.js";
 
     import {
@@ -202,6 +203,12 @@
 
                 leaveRoom(roomId, socket.id);
 
+                const members = getRoomMembers(roomId);
+
+                if (members.length === 0) {
+                destroyRoom(roomId);
+        }
+
                 console.log(`[LEAVE] ${socket.id} -> ${roomId}`);
 
                 socket.to(roomId).emit("user-left", {
@@ -319,6 +326,10 @@
                     console.log(
                         `[CLEANUP] Removed ${socket.id} from ${roomId}`
                     );
+
+                    if (getRoomMembers(roomId).length === 0) {
+                    destroyRoom(roomId);
+                }
 
                 });
 
