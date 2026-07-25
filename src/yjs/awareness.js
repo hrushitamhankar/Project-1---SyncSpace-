@@ -24,6 +24,20 @@ export function getAwareness(roomId) {
 }
 
 /**
+ * Update local awareness state for a user.
+ */
+export function updateLocalAwareness(roomId, clientId, state) {
+    const awareness = getAwareness(roomId);
+
+    awareness.setLocalStateField("user", {
+        clientId,
+        ...state
+    });
+
+    return awareness;
+}
+
+/**
  * Remove Awareness when room is destroyed.
  */
 export function removeAwareness(roomId) {

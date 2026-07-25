@@ -6,12 +6,19 @@
     } from "./roomManager.js";
 
     import {
-        updateAwareness,
-        removeSocketAwareness
+    updateAwareness,
+    removeSocketAwareness
     } from "./awareness.js";
 
+    import {
+    initializeRoom
+    } from "../yjs/manager.js";
 
-    import { initializeRoom } from "../yjs/manager.js";
+    import {
+    updateLocalAwareness
+    } from "../yjs/awareness.js";
+
+
 
     /**
      * Socket Events
@@ -268,6 +275,16 @@
                     socket.id,
                     awareness
                 );
+
+                // B2: Update Yjs Awareness
+                updateLocalAwareness(
+                roomId,
+                socket.id,
+            {
+                cursor: data.cursor || null,
+                user: data.user || null
+        }
+);
 
                 console.log(
                     `[AWARENESS] ${socket.id} -> ${roomId}`,
