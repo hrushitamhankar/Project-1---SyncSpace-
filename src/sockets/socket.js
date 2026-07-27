@@ -11,6 +11,12 @@ import {
 } from "./awareness.js";
 
 /**
+ * Tracks the last awareness update timestamp
+ * for each connected socket.
+ */
+const awarenessThrottle = new Map();
+
+/**
  * Socket Events
  *
  * Client -> Server
@@ -234,6 +240,18 @@ export default function initializeSocket(io) {
                 return;
             }
 
+            const now = Date.now();
+
+            const lastUpdate =
+                awarenessThrottle.get(socket.id) || 0;
+
+            // 50ms throttle (~20 updates/sec)
+            if (now - lastUpdate < 50) {
+                return;
+            }
+
+            awarenessThrottle.set(socket.id, now);
+
             const awareness = {
 
                 socketId: socket.id,
@@ -277,6 +295,8 @@ export default function initializeSocket(io) {
             const leftRooms = removeSocketFromAllRooms(socket.id);
 
             removeSocketAwareness(socket.id);
+
+            awarenessThrottle.delete(socket.id);
 
             leftRooms.forEach((roomId) => {
 
