@@ -22,6 +22,10 @@ const {
 
 } = require("../utils/throttle");
 
+const {
+    requestRoomSave
+} = require("../utils/persistenceHooks");
+
 /**
  * Socket Events
  *
@@ -188,6 +192,11 @@ export default function initializeSocket(io) {
 
             leaveRoom(roomId, socket.id);
 
+            requestRoomSave(
+                roomId,
+                "leave-room"
+            );
+
             console.log(`[LEAVE] ${socket.id} -> ${roomId}`);
 
             socket.to(roomId).emit("user-left", {
@@ -291,10 +300,6 @@ export default function initializeSocket(io) {
          */
         socket.on("disconnect", () => {
 
-            console.log(
-                `[DISCONNECT] ${socket.id} disconnected`
-            );
-
             const leftRooms = removeSocketFromAllRooms(socket.id);
 
             removeSocketAwareness(socket.id);
@@ -303,17 +308,19 @@ export default function initializeSocket(io) {
                 `awareness-${socket.id}`
             );
 
+            // Request persistence for every room
             leftRooms.forEach((roomId) => {
 
-                socket.to(roomId).emit("user-left", {
-                    socketId: socket.id
-                });
-
-                console.log(
-                    `[CLEANUP] Removed ${socket.id} from room ${roomId}`
+                requestRoomSave(
+                    roomId,
+                    "disconnect"
                 );
 
             });
+
+            console.log(
+                `[DISCONNECT] ${socket.id} disconnected`
+            );
 
         });
 
