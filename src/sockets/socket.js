@@ -1,3 +1,5 @@
+import { createRequire } from "module";
+
 import {
     joinRoom,
     leaveRoom,
@@ -10,11 +12,15 @@ import {
     removeSocketAwareness
 } from "./awareness.js";
 
-/**
- * Tracks the last awareness update timestamp
- * for each connected socket.
- */
-const awarenessThrottle = new Map();
+const require = createRequire(import.meta.url);
+
+const {
+
+    shouldThrottle,
+
+    clearThrottle
+
+} = require("../utils/throttle");
 
 /**
  * Socket Events
@@ -240,17 +246,14 @@ export default function initializeSocket(io) {
                 return;
             }
 
-            const now = Date.now();
-
-            const lastUpdate =
-                awarenessThrottle.get(socket.id) || 0;
-
-            // 50ms throttle (~20 updates/sec)
-            if (now - lastUpdate < 50) {
+            if (
+                shouldThrottle(
+                    `awareness-${socket.id}`,
+                    50
+                )
+            ) {
                 return;
             }
-
-            awarenessThrottle.set(socket.id, now);
 
             const awareness = {
 
@@ -296,7 +299,9 @@ export default function initializeSocket(io) {
 
             removeSocketAwareness(socket.id);
 
-            awarenessThrottle.delete(socket.id);
+            clearThrottle(
+                `awareness-${socket.id}`
+            );
 
             leftRooms.forEach((roomId) => {
 
