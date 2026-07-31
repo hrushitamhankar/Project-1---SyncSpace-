@@ -12,6 +12,12 @@ import {
     removeSocketAwareness
 } from "./awareness.js";
 
+import {
+    increment,
+    decrement,
+    getMetrics
+} from "../utils/roomMetrics.js";
+
 const require = createRequire(import.meta.url);
 
 const {
@@ -52,6 +58,8 @@ const {
 export default function initializeSocket(io) {
 
     io.on("connection", (socket) => {
+
+        increment("activeUsers");
 
         console.log(`[CONNECT] ${socket.id}`);
 
@@ -149,6 +157,8 @@ export default function initializeSocket(io) {
             socket.join(roomId);
 
             joinRoom(roomId, socket.id);
+
+            increment("reconnects");
 
             console.log(`[REJOIN] ${socket.id} -> ${roomId}`);
 
@@ -283,6 +293,8 @@ export default function initializeSocket(io) {
                 awareness
             );
 
+            increment("awarenessUpdates");
+
             console.log(
                 `[AWARENESS] ${socket.id} updated awareness in room ${roomId}`
             );
@@ -296,9 +308,23 @@ export default function initializeSocket(io) {
         });
 
         /**
+         * Server Metrics (debug)
+         */
+        socket.on("server-metrics", () => {
+
+            socket.emit(
+                "server-metrics",
+                getMetrics()
+            );
+
+        });
+
+        /**
          * Disconnect
          */
         socket.on("disconnect", () => {
+
+            decrement("activeUsers");
 
             const leftRooms = removeSocketFromAllRooms(socket.id);
 
