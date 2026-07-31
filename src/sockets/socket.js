@@ -18,6 +18,10 @@ import {
     getMetrics
 } from "../utils/roomMetrics.js";
 
+import {
+    validateRoom
+} from "../utils/socketValidator.js";
+
 const require = createRequire(import.meta.url);
 
 const {
@@ -75,15 +79,7 @@ export default function initializeSocket(io) {
          */
         socket.on("joinRoom", (roomId) => {
 
-            if (
-                typeof roomId !== "string" ||
-                roomId.trim().length === 0
-            ) {
-
-                socket.emit("room-error", {
-                    message: "Invalid room ID"
-                });
-
+            if (!validateRoom(roomId, socket)) {
                 return;
             }
 
@@ -130,15 +126,7 @@ export default function initializeSocket(io) {
          */
         socket.on("rejoin-room", (roomId) => {
 
-            if (
-                typeof roomId !== "string" ||
-                roomId.trim().length === 0
-            ) {
-
-                socket.emit("room-error", {
-                    message: "Invalid room ID"
-                });
-
+            if (!validateRoom(roomId, socket)) {
                 return;
             }
 
@@ -184,15 +172,7 @@ export default function initializeSocket(io) {
          */
         socket.on("leaveRoom", (roomId) => {
 
-            if (
-                typeof roomId !== "string" ||
-                roomId.trim().length === 0
-            ) {
-
-                socket.emit("room-error", {
-                    message: "Invalid room ID"
-                });
-
+            if (!validateRoom(roomId, socket)) {
                 return;
             }
 
