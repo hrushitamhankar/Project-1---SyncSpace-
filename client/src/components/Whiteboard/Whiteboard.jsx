@@ -8,7 +8,19 @@ function Whiteboard({
   clearCanvas,
   selectedColor,
   strokeWidth,
-}) {
+
+  showTextModal,
+  setShowTextModal,
+
+  textValue,
+  setTextValue,
+
+  textPosition,
+  setTextPosition,
+
+  pendingText,
+  setPendingText,
+}){
 
   const [lines, setLines] = useState([]);
   const [rectangles, setRectangles] = useState([]);
@@ -22,6 +34,8 @@ const [redoHistory, setRedoHistory] = useState([]);
   const [startPos, setStartPos] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
+  const [selectedShape, setSelectedShape] = useState(null);
+
 useEffect(() => {
   saveHistory();
 
@@ -30,6 +44,56 @@ useEffect(() => {
   setCircles([]);
   setTexts([]);
 }, [clearCanvas]);
+
+useEffect(() => {
+  if (!pendingText) return;
+
+  setTexts((prev) => [...prev, pendingText]);
+  setPendingText(null);
+}, [pendingText, setPendingText]);
+
+useEffect(() => {
+  const handleKeyDown = (e) => {
+    if (e.key !== "Delete" || !selectedShape) return;
+
+    switch (selectedShape.type) {
+      case "rectangle":
+        setRectangles((prev) =>
+          prev.filter((_, i) => i !== selectedShape.index)
+        );
+        break;
+
+case "circle":
+  setCircles((prev) =>
+    prev.filter((_, i) => i !== selectedShape.index)
+  );
+  break;
+
+case "text":
+  setTexts((prev) =>
+    prev.filter((_, i) => i !== selectedShape.index)
+  );
+  break;
+
+case "line":
+  setLines((prev) =>
+    prev.filter((_, i) => i !== selectedShape.index)
+  );
+  break;
+
+      default:
+        break;
+    }
+
+    setSelectedShape(null);
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+  };
+}, [selectedShape]);
 
 const saveHistory = () => {
   setHistory((prev) => [
@@ -136,20 +200,9 @@ if (tool === "circle") {
 }
 
 if (tool === "text") {
-  const value = prompt("Enter text");
-
-  if (value) {
-    saveHistory();
-    setTexts((prev) => [
-      ...prev,
-      {
-        x: pos.x,
-        y: pos.y,
-        text: value,
-        color: selectedColor,
-      },
-    ]);
-  }
+  setTextPosition(pos);
+  setShowTextModal(true);
+  return;
 }
 
 };
@@ -209,11 +262,35 @@ const handleMouseUp = () => {
             <Line
               key={index}
               points={line.points}
-              stroke={line.color}
-              strokeWidth={line.strokeWidth}
+stroke={
+  selectedShape?.type === "line" &&
+  selectedShape?.index === index
+    ? "dodgerblue"
+    : line.color
+}
+
+strokeWidth={
+  selectedShape?.type === "line" &&
+  selectedShape?.index === index
+    ? line.strokeWidth + 2
+    : line.strokeWidth
+}
               tension={0.5}
               lineCap="round"
               lineJoin="round"
+
+  onClick={() => {
+  if (tool === "eraser") {
+    setLines((prev) => prev.filter((_, i) => i !== index));
+    return;
+  }
+
+  setSelectedShape({
+    type: "line",
+    index,
+  });
+}}
+
             />
           ))}
 
@@ -225,9 +302,30 @@ const handleMouseUp = () => {
   width={rect.width}
   height={rect.height}
 fill="transparent"
-stroke={rect.color}
-strokeWidth={rect.strokeWidth}
+stroke={
+  selectedShape?.type === "rectangle" &&
+  selectedShape?.index === index
+    ? "dodgerblue"
+    : rect.color
+}
+strokeWidth={
+  selectedShape?.type === "rectangle" &&
+  selectedShape?.index === index
+    ? rect.strokeWidth + 2
+    : rect.strokeWidth
+}
   draggable
+  onClick={() => {
+  if (tool === "eraser") {
+    setRectangles((prev) => prev.filter((_, i) => i !== index));
+    return;
+  }
+
+  setSelectedShape({
+    type: "rectangle",
+    index,
+  });
+}}
   onDragEnd={(e) => {
     const updated = [...rectangles];
 
@@ -249,9 +347,31 @@ strokeWidth={rect.strokeWidth}
   y={circle.y}
   radius={circle.radius}
 fill="transparent"
-stroke={circle.color}
-strokeWidth={circle.strokeWidth}
+stroke={
+  selectedShape?.type === "circle" &&
+  selectedShape?.index === index
+    ? "dodgerblue"
+    : circle.color
+}
+
+strokeWidth={
+  selectedShape?.type === "circle" &&
+  selectedShape?.index === index
+    ? circle.strokeWidth + 2
+    : circle.strokeWidth
+}
   draggable
+  onClick={() => {
+  if (tool === "eraser") {
+    setCircles((prev) => prev.filter((_, i) => i !== index));
+    return;
+  }
+
+  setSelectedShape({
+    type: "circle",
+    index,
+  });
+}}
   onDragEnd={(e) => {
     const updated = [...circles];
 
@@ -273,8 +393,24 @@ strokeWidth={circle.strokeWidth}
     y={text.y}
     text={text.text}
     fontSize={20}
-    fill={text.color}
+    fill={
+  selectedShape?.type === "text" &&
+  selectedShape?.index === index
+    ? "dodgerblue"
+    : text.color
+}
     draggable
+  onClick={() => {
+  if (tool === "eraser") {
+    setTexts((prev) => prev.filter((_, i) => i !== index));
+    return;
+  }
+
+  setSelectedShape({
+    type: "text",
+    index,
+  });
+}}
     onDragEnd={(e) => {
       const updated = [...texts];
 

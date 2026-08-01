@@ -79,6 +79,11 @@ function Sidebar({
   🗑 Clear Canvas
 </button>
         </li>
+        <li>
+          <button onClick={() => setTool("eraser")}>
+  Eraser
+</button>
+        </li>
     </ul>
     </div>
   );

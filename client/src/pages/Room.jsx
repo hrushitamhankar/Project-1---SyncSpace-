@@ -1,3 +1,5 @@
+import "./Room.css";
+
 import { useState, useRef, useEffect } from "react";
 import MainLayout from "../layouts/MainLayout";
 import Sidebar from "../components/Sidebar/Sidebar";
@@ -12,6 +14,12 @@ function Room() {
   const [strokeWidth, setStrokeWidth] = useState(3);
 const [whiteboardWidth, setWhiteboardWidth] = useState(600);
 const isDragging = useRef(false);
+const [showJoinModal, setShowJoinModal] = useState(false);
+const [roomId, setRoomId] = useState("");
+const [showTextModal, setShowTextModal] = useState(false);
+const [textValue, setTextValue] = useState("");
+const [textPosition, setTextPosition] = useState(null);
+const [pendingText, setPendingText] = useState(null);
 
 useEffect(() => {
   socket.on("connect", () => {
@@ -69,7 +77,19 @@ window.onmouseup = handleMouseUp;
   width={whiteboardWidth}
   clearCanvas={clearCanvas}
   selectedColor={selectedColor}
-   strokeWidth={strokeWidth}
+  strokeWidth={strokeWidth}
+
+  showTextModal={showTextModal}
+  setShowTextModal={setShowTextModal}
+
+  textValue={textValue}
+  setTextValue={setTextValue}
+
+  textPosition={textPosition}
+  setTextPosition={setTextPosition}
+
+  pendingText={pendingText}
+  setPendingText={setPendingText}
 />
 
 <div
@@ -85,6 +105,72 @@ window.onmouseup = handleMouseUp;
 <CodeEditor />
         </div>
       </div>
+
+{showTextModal && (
+  <div className="modal-overlay">
+    <div className="join-modal">
+
+      <button
+        className="close-btn"
+        onClick={() => {
+          setShowTextModal(false);
+          setTextValue("");
+        }}
+      >
+        ×
+      </button>
+
+      <div className="modal-header">
+        <div className="icon">📝</div>
+
+        <div>
+          <h2>Add Text</h2>
+          <p>Enter the text you want to place on the canvas.</p>
+        </div>
+      </div>
+
+      <input
+        type="text"
+        placeholder="Type something..."
+        value={textValue}
+        onChange={(e) => setTextValue(e.target.value)}
+      />
+
+      <div className="modal-buttons">
+
+        <button
+          className="cancel-btn"
+          onClick={() => {
+            setShowTextModal(false);
+            setTextValue("");
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={() => {
+  if (!textValue.trim()) return;
+
+  setPendingText({
+    x: textPosition.x,
+    y: textPosition.y,
+    text: textValue,
+    color: selectedColor,
+  });
+
+  setShowTextModal(false);
+  setTextValue("");
+}}
+        >
+          Add Text
+        </button>
+
+      </div>
+    </div>
+  </div>
+)}
+
     </MainLayout>
   );
 }
