@@ -17,6 +17,34 @@ const io = new Server(server, {
 
 initializeSocket(io);
 
-server.listen(config.PORT, () => {
-    console.log(`Server running on port ${config.PORT}`);
+const serverInstance = server.listen(config.PORT, () => {
+
+    console.log(`
+======================================
+ SyncSpace Backend Started
+ Environment : ${config.NODE_ENV}
+ Port        : ${config.PORT}
+======================================
+`);
+
 });
+
+function gracefulShutdown(signal) {
+
+    console.log(
+        `\n${signal} received. Shutting down server...`
+    );
+
+    serverInstance.close(() => {
+
+        console.log("HTTP server closed.");
+
+        process.exit(0);
+
+    });
+
+}
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
