@@ -1,9 +1,15 @@
+const mongoose = require("mongoose");
+
 const roomSchema = new mongoose.Schema({
-  roomId: String,
+  roomId: {
+    type: String,
+    required: true,
+  },
 
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
+    required: true,
   },
 
   invitedUsers: [
@@ -20,3 +26,5 @@ const roomSchema = new mongoose.Schema({
     },
   ],
 });
+
+module.exports = mongoose.model("Room", roomSchema);

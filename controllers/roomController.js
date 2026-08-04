@@ -65,16 +65,6 @@ exports.inviteUser = async (req, res) => {
       });
     }
 
-    // Prevent duplicate invitations
-    const alreadyInvited = room.invitedUsers.some(
-      (member) => member.user.toString() === user._id.toString()
-    );
-
-    if (alreadyInvited) {
-      return res.status(400).json({
-        message: "User is already invited",
-      });
-    }
     // Add user with role
     room.invitedUsers.push({
       user: user._id,
