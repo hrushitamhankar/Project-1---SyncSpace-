@@ -8,7 +8,7 @@ const app = express();
 // Middleware
 app.use(
     cors({
-        origin: config.CLIENT_URL,
+        origin: process.env.CLIENT_URL,
         credentials: true
     })
 );
@@ -18,6 +18,7 @@ app.use(express.json());
 app.get("/health", (req, res) => {
     res.status(200).json({
         status: "OK",
+        environment: process.env.NODE_ENV,
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
     });
