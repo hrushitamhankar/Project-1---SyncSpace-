@@ -20,20 +20,50 @@ console.log("Join button clicked");
 
 };
 
+const handleLeaveRoom = () => {
+  const roomId = localStorage.getItem("roomId");
+
+  if (!roomId) {
+    alert("You are not in a room.");
+    return;
+  }
+
+  socket.emit("leaveRoom", roomId);
+
+  localStorage.removeItem("roomId");
+
+  navigate("/");
+};
+
 useEffect(() => {
   
   socket.on("room-members", ({ roomId }) => {
-    navigate("/room", {
-  state: {
-    roomId,
-  },
-});
+  console.log("Received room-members:", roomId);
+
+  localStorage.setItem("roomId", roomId);
+
+  navigate("/room", {
+    state: {
+      roomId,
+    },
   });
+});
+
 
   return () => {
     socket.off("room-members");
   };
 }, [navigate]);
+
+useEffect(() => {
+  socket.on("user-left", (data) => {
+    console.log("User left:", data);
+  });
+
+  return () => {
+    socket.off("user-left");
+  };
+}, []);
 
   return (
   <>
@@ -44,6 +74,11 @@ useEffect(() => {
         <button onClick={() => setShowJoinModal(true)}>
           Join Room
         </button>
+
+        <button onClick={handleLeaveRoom}>
+  Leave Room
+</button>
+
       </div>
     </header>
 
@@ -69,6 +104,7 @@ useEffect(() => {
 <button onClick={handleJoinRoom}>
   Join
 </button>
+
 
           </div>
 

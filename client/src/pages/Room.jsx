@@ -12,7 +12,10 @@ import socket from "../services/socket";
 function Room() {
 
 const { state } = useLocation();
-const roomId = state?.roomId;
+
+const roomId = localStorage.getItem("roomId");
+
+console.log("Room from localStorage:", roomId);
 
     const [clearCanvas, setClearCanvas] = useState(false);
   const [tool, setTool] = useState("pen");
@@ -30,6 +33,37 @@ const [pendingText, setPendingText] = useState(null);
 useEffect(() => {
     console.log("Current Room:", roomId);
   }, [roomId]);
+
+useEffect(() => {
+  if (!roomId) return;
+
+  const handleConnect = () => {
+    console.log("Socket connected. Rejoining:", roomId);
+
+    socket.emit("rejoin-room", roomId);
+  };
+
+  socket.on("connect", handleConnect);
+
+  // If already connected, emit immediately
+  if (socket.connected) {
+    handleConnect();
+  }
+
+  return () => {
+    socket.off("connect", handleConnect);
+  };
+}, [roomId]);
+
+useEffect(() => {
+  socket.on("room-restored", (data) => {
+    console.log("Room restored:", data);
+  });
+
+  return () => {
+    socket.off("room-restored");
+  };
+}, []);
 
 useEffect(() => {
   
