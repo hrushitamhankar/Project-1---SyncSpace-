@@ -2,15 +2,26 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  createRoom,
-  inviteUser,
-  getMyRooms,
+    createRoom,
+    inviteUser,
+    getMyRooms
 } = require("../controllers/roomController");
 
-router.post("/create", createRoom);
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/invite", inviteUser);
+// =========================================
+// CREATE ROOM
+// =========================================
+router.post("/create", authMiddleware, createRoom);
 
-router.get("/myrooms/:ownerId", getMyRooms);
+// =========================================
+// INVITE USER
+// =========================================
+router.post("/invite", authMiddleware, inviteUser);
+
+// =========================================
+// GET MY ROOMS
+// =========================================
+router.get("/myrooms", authMiddleware, getMyRooms);
 
 module.exports = router;

@@ -1,113 +1,177 @@
 const jwt = require("jsonwebtoken");
 const Room = require("../models/Room");
 
-const socketHandler = (io) => {
+module.exports = (io) => {
+  io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
 
-    // JWT Authentication Middleware
-    io.use((socket, next) => {
+    // =========================
+    // GET JWT TOKEN
+    // =========================
+    const token = socket.handshake.auth?.token;
 
-        const token = socket.handshake.auth.token;
+    if (!token) {
+      console.log("No JWT token provided");
 
-        if (!token) {
-            return next(new Error("Authentication Error"));
-        }
+      socket.emit("authError", {
+        message: "Authentication token required"
+      });
 
+      socket.disconnect();
+      return;
+    }
+
+    // =========================
+    // VERIFY JWT
+    // =========================
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Store logged-in user
+      socket.user = decoded;
+
+      console.log("Authenticated user:", decoded);
+
+      // =========================
+      // JOIN ROOM
+      // =========================
+      socket.on("joinRoom", async (roomId) => {
         try {
-            const decoded = jwt.verify(
-                token,
-                process.env.JWT_SECRET
+          if (!roomId) {
+            socket.emit("errorMessage", {
+              message: "Room ID is required"
+            });
+            return;
+          }
+
+          // Find room
+          const room = await Room.findOne({ roomId: roomId });
+
+          if (!room) {
+            socket.emit("errorMessage", {
+              message: "Room not found"
+            });
+            return;
+          }
+
+          // Get logged-in user's ID
+          const userId = socket.user.id || socket.user._id;
+
+          // =========================
+          // CHECK OWNER
+          // =========================
+          const isOwner =
+            room.ownerId.toString() === userId.toString();
+
+          // =========================
+          // CHECK INVITED USER
+          // =========================
+          const invitedUser = room.invitedUsers.find(
+            (invited) =>
+              invited.user.toString() === userId.toString()
+          );
+
+          // =========================
+          // CHECK PERMISSION
+          // =========================
+          if (!isOwner && !invitedUser) {
+            socket.emit("errorMessage", {
+              message: "You are not invited to this room"
+            });
+
+            console.log(
+              `Unauthorized user ${userId} tried to join room ${roomId}`
             );
 
-            socket.user = decoded;
+            return;
+          }
 
-            next();
+          // =========================
+          // GET ROLE
+          // =========================
+          let role = "owner";
 
-        } catch (err) {
-            return next(new Error("Invalid Token"));
+          if (invitedUser) {
+            role = invitedUser.role;
+          }
+
+          // Save room information on socket
+          socket.roomId = roomId;
+          socket.role = role;
+
+          // Join Socket.IO room
+          socket.join(roomId);
+
+          console.log(
+            `User ${userId} joined room ${roomId} as ${role}`
+          );
+
+          // Send success response
+          socket.emit("joinSuccess", {
+            message: "Joined Successfully",
+            roomId: roomId,
+            role: role
+          });
+
+          // Notify other users
+          socket.to(roomId).emit("user-joined", {
+            userId: userId,
+            role: role
+          });
+        } catch (error) {
+          console.error("Join room error:", error);
+
+          socket.emit("errorMessage", {
+            message: "Failed to join room"
+          });
+        }
+      });
+
+      // =========================
+      // LEAVE ROOM
+      // =========================
+      socket.on("leaveRoom", (roomId) => {
+        if (!roomId) {
+          return;
         }
 
-    });
+        socket.leave(roomId);
 
-    // Socket Connection
-    io.on("connection", (socket) => {
+        const userId = socket.user.id || socket.user._id;
 
-        console.log("==================================");
-        console.log("Socket connected:", socket.id);
-        console.log("User:", socket.user);
-        console.log("==================================");
+        console.log(
+          `User ${userId} left room ${roomId}`
+        );
 
-        // Join Room
-        socket.on("joinRoom", async (roomId) => {
-
-            console.log("joinRoom event received");
-            console.log("Room ID:", roomId);
-
-            try {
-
-                const room = await Room.findById(roomId);
-
-                console.log("Room:", room);
-
-                if (!room) {
-                    console.log("Room not found");
-                    return socket.emit("error", "Room not found");
-                }
-
-                const userId = socket.user.id;
-
-                console.log("User ID:", userId);
-
-                const isOwner =
-                    room.ownerId.toString() === userId;
-
-                const isInvited =
-                    room.invitedUsers.some(
-                        (user) => user.toString() === userId
-                    );
-
-                console.log("Is Owner:", isOwner);
-                console.log("Is Invited:", isInvited);
-
-                if (!isOwner && !isInvited) {
-                    console.log("Access Denied");
-                    return socket.emit("error", "Access Denied");
-                }
-
-                socket.join(roomId);
-
-                socket.emit(
-                    "joined",
-                    "Joined Successfully"
-                );
-
-                socket.to(roomId).emit(
-                    "user-joined",
-                    userId
-                );
-
-                console.log("User joined room successfully");
-
-            } catch (err) {
-
-                console.log("Join Room Error:", err);
-
-                socket.emit(
-                    "error",
-                    err.message
-                );
-
-            }
-
+        socket.to(roomId).emit("user-left", {
+          userId: userId
         });
 
-        socket.on("disconnect", () => {
+        socket.roomId = null;
+        socket.role = null;
+      });
 
-            console.log("Socket disconnected:", socket.id);
+      // =========================
+      // DISCONNECT
+      // =========================
+      socket.on("disconnect", (reason) => {
+        console.log(
+          `Socket disconnected: ${socket.id}`
+        );
 
-        });
+        console.log(`Reason: ${reason}`);
+      });
+    } catch (error) {
+      console.log(
+        "JWT verification failed:",
+        error.message
+      );
 
-    });
+      socket.emit("authError", {
+        message: "Invalid or expired token"
+      });
 
+      socket.disconnect();
+    }
+  });
 };
-
-module.exports = socketHandler;
