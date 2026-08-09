@@ -8,7 +8,7 @@ exports.createRoom = async (req, res) => {
     try {
         const { roomId } = req.body;
 
-        // Get logged-in user's ID from JWT
+        // Get owner from logged-in user's JWT
         const ownerId = req.user.id || req.user._id;
 
         if (!roomId) {
@@ -17,6 +17,16 @@ exports.createRoom = async (req, res) => {
             });
         }
 
+        // Check if room already exists
+        const existingRoom = await Room.findOne({ roomId });
+
+        if (existingRoom) {
+            return res.status(400).json({
+                message: "Room ID already exists"
+            });
+        }
+
+        // Create room
         const room = await Room.create({
             roomId,
             ownerId,
@@ -29,6 +39,8 @@ exports.createRoom = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Create room error:", error);
+
         res.status(500).json({
             message: error.message
         });
@@ -43,6 +55,13 @@ exports.inviteUser = async (req, res) => {
     try {
         const { roomId, email, role } = req.body;
 
+        // Check required fields
+        if (!roomId || !email) {
+            return res.status(400).json({
+                message: "Room ID and email are required"
+            });
+        }
+
         // Find room
         const room = await Room.findOne({ roomId });
 
@@ -52,7 +71,20 @@ exports.inviteUser = async (req, res) => {
             });
         }
 
-        // Find user
+        // Get logged-in user
+        const loggedInUserId = req.user.id || req.user._id;
+
+        // Only room owner can invite
+        if (
+            room.ownerId.toString() !==
+            loggedInUserId.toString()
+        ) {
+            return res.status(403).json({
+                message: "Only the room owner can invite users"
+            });
+        }
+
+        // Find invited user
         const user = await User.findOne({ email });
 
         if (!user) {
@@ -70,10 +102,11 @@ exports.inviteUser = async (req, res) => {
             });
         }
 
-        // Check duplicate invitation
+        // Check if user is already invited
         const alreadyInvited = room.invitedUsers.some(
             (member) =>
-                member.user.toString() === user._id.toString()
+                member.user.toString() ===
+                user._id.toString()
         );
 
         if (alreadyInvited) {
@@ -82,7 +115,17 @@ exports.inviteUser = async (req, res) => {
             });
         }
 
-        // Add user with role
+        // Don't allow owner to be invited
+        if (
+            room.ownerId.toString() ===
+            user._id.toString()
+        ) {
+            return res.status(400).json({
+                message: "Room owner is already a member"
+            });
+        }
+
+        // Add invited user
         room.invitedUsers.push({
             user: user._id,
             role: role || "viewer"
@@ -96,6 +139,93 @@ exports.inviteUser = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Invite user error:", error);
+
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+
+// =========================================
+// CHANGE USER ROLE
+// =========================================
+exports.changeUserRole = async (req, res) => {
+    try {
+        const { roomId, email, role } = req.body;
+
+        // Check required fields
+        if (!roomId || !email || !role) {
+            return res.status(400).json({
+                message: "Room ID, email and role are required"
+            });
+        }
+
+        // Validate role
+        if (!["editor", "viewer"].includes(role)) {
+            return res.status(400).json({
+                message: "Role must be editor or viewer"
+            });
+        }
+
+        // Find room
+        const room = await Room.findOne({ roomId });
+
+        if (!room) {
+            return res.status(404).json({
+                message: "Room not found"
+            });
+        }
+
+        // Get logged-in user
+        const loggedInUserId = req.user.id || req.user._id;
+
+        // Only owner can change roles
+        if (
+            room.ownerId.toString() !==
+            loggedInUserId.toString()
+        ) {
+            return res.status(403).json({
+                message: "Only the room owner can change user roles"
+            });
+        }
+
+        // Find user
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            });
+        }
+
+        // Find invited member
+        const member = room.invitedUsers.find(
+            (item) =>
+                item.user.toString() ===
+                user._id.toString()
+        );
+
+        if (!member) {
+            return res.status(404).json({
+                message: "User is not invited to this room"
+            });
+        }
+
+        // Change role
+        member.role = role;
+
+        await room.save();
+
+        res.status(200).json({
+            message: "User role updated successfully",
+            room
+        });
+
+    } catch (error) {
+        console.error("Change role error:", error);
+
         res.status(500).json({
             message: error.message
         });
@@ -108,10 +238,16 @@ exports.inviteUser = async (req, res) => {
 // =========================================
 exports.getMyRooms = async (req, res) => {
     try {
-        const ownerId = req.user.id || req.user._id;
+        // Get logged-in user from JWT
+        const userId = req.user.id || req.user._id;
 
-        const rooms = await Room.find({ ownerId })
-            .populate("invitedUsers.user", "name email");
+        // Find rooms owned by logged-in user
+        const rooms = await Room.find({
+            ownerId: userId
+        }).populate(
+            "invitedUsers.user",
+            "name email"
+        );
 
         res.status(200).json({
             message: "Rooms fetched successfully",
@@ -119,6 +255,8 @@ exports.getMyRooms = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Get rooms error:", error);
+
         res.status(500).json({
             message: error.message
         });
