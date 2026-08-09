@@ -1,5 +1,6 @@
 const Room = require("../models/Room");
 const User = require("../models/User");
+const Replay = require("../models/Replay");
 
 // =========================================
 // CREATE ROOM
@@ -256,6 +257,68 @@ exports.getMyRooms = async (req, res) => {
 
     } catch (error) {
         console.error("Get rooms error:", error);
+
+        res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
+// =========================================
+// GET ROOM REPLAY
+// =========================================
+exports.getRoomReplay = async (req, res) => {
+    try {
+        const { roomId } = req.params;
+
+        if (!roomId) {
+            return res.status(400).json({
+                message: "Room ID is required"
+            });
+        }
+
+        // Find room
+        const room = await Room.findOne({ roomId });
+
+        if (!room) {
+            return res.status(404).json({
+                message: "Room not found"
+            });
+        }
+
+        // Get logged-in user
+        const userId = req.user.id || req.user._id;
+
+        // Check owner
+        const isOwner =
+            room.ownerId.toString() === userId.toString();
+
+        // Check invited user
+        const isInvited = room.invitedUsers.some(
+            (member) =>
+                member.user.toString() === userId.toString()
+        );
+
+        // Only room members can see replay
+        if (!isOwner && !isInvited) {
+            return res.status(403).json({
+                message: "You are not allowed to view this replay"
+            });
+        }
+
+        // Get replay events
+        const replay = await Replay.find({ roomId })
+            .sort({ createdAt: 1 });
+
+        res.status(200).json({
+            message: "Replay fetched successfully",
+            roomId,
+            totalEvents: replay.length,
+            replay
+        });
+
+    } catch (error) {
+        console.error("Get replay error:", error);
 
         res.status(500).json({
             message: error.message

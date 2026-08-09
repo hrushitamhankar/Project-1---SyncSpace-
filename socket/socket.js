@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const Room = require("../models/Room");
+const Replay = require("../models/Replay");
 
 module.exports = (io) => {
     io.on("connection", (socket) => {
@@ -140,7 +141,7 @@ module.exports = (io) => {
             // =========================================
             // EDIT / DRAWING EVENT
             // =========================================
-            socket.on("editRoom", (data) => {
+            socket.on("editRoom", async (data) => {
 
                 // User must first join a room
                 if (!socket.roomId) {
@@ -172,6 +173,25 @@ module.exports = (io) => {
                 console.log(
                     `User ${socket.user.id || socket.user._id} edited room ${socket.roomId}`
                 );
+
+                // Save edit event to MongoDB
+                try {
+                    await Replay.create({
+                        roomId: socket.roomId,
+                        userId: socket.user.id || socket.user._id,
+                        role: socket.role,
+                        eventType: "edit",
+                        data: data
+                    });
+
+                    console.log("Edit event saved to replay history");
+
+                } catch (error) {
+                    console.error(
+                        "Failed to save replay event:",
+                        error.message
+                    );
+                }
 
                 // Send edit to other users
                 socket.to(socket.roomId).emit(
