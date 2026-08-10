@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const replaySchema = new mongoose.Schema(
     {
@@ -16,7 +16,11 @@ const replaySchema = new mongoose.Schema(
 
         role: {
             type: String,
-            enum: ["owner", "editor", "viewer"],
+            enum: [
+                "owner",
+                "editor",
+                "viewer"
+            ],
             required: true
         },
 
@@ -35,4 +39,7 @@ const replaySchema = new mongoose.Schema(
     }
 );
 
-module.exports = mongoose.model("Replay", replaySchema);
+export default mongoose.model(
+    "Replay",
+    replaySchema
+);

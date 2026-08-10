@@ -1,310 +1,150 @@
+import socketAuth from "../middleware/socketAuth.js";
+
 import {
     joinRoom,
     leaveRoom,
-    getRoomMembers,
     removeSocketFromAllRooms
 } from "./roomManager.js";
 
-    import {
-    updateAwareness,
-    removeSocketAwareness
-} from "./awareness.js";
+let ioInstance = null;
 
-import {
-    initializeRoom,
-    destroyRoom
-} from "../yjs/manager.js";
+// =========================================
+// INITIALIZE SOCKET.IO
+// =========================================
 
-    /**
-     * Socket Events
-     *
-     * Client -> Server
-     * --------------------------
-     * joinRoom
-     * leaveRoom
-     * awareness-update
-     *
-     * Server -> Client
-     * --------------------------
-     * welcome
-     * room-members
-     * user-joined
-     * user-left
-     * awareness-updated
-     */
+export default function initializeSocket(io) {
 
-    /**
-     * Initialize all Socket.IO event handlers.
-     *
-     * @param {import("socket.io").Server} io
-     */
-    export default function initializeSocket(io) {
+    ioInstance = io;
+
+    // =========================================
+    // B3 JWT AUTHENTICATION
+    // =========================================
+
+    io.use(socketAuth);
+
+    // =========================================
+    // SOCKET CONNECTION
+    // =========================================
 
     io.on("connection", (socket) => {
 
-            console.log(`[CONNECT] ${socket.id}`);
+        console.log(
+            "Socket connected:",
+            socket.id
+        );
 
-            /**
-             * Welcome Event
-             */
-            socket.emit("welcome", {
-                message: "Connected to SyncSpace"
-            });
+        console.log(
+            "Authenticated user:",
+            socket.user?.id ||
+            socket.user?._id
+        );
 
-            /**
-             * Join Room
-             */
-            socket.on("joinRoom", (roomId) => {
+        // =========================================
+        // JOIN ROOM
+        // =========================================
 
-            if (
-                typeof roomId !== "string" ||
-                roomId.trim().length === 0
-            ) {
-
-                socket.emit("room-error", {
-                    message: "Invalid room ID"
-                });
-
-                return;
-            }
-
-                roomId = roomId.trim();
-
-                const members = getRoomMembers(roomId);
-
-                if (members.includes(socket.id)) {
-
-                    socket.emit("room-error", {
-                        message: "Already joined this room"
-                    });
-
-                    return;
-                }
-
-                socket.join(roomId);
-
-                joinRoom(roomId, socket.id);
-
-                // B2: Initialize Yjs document and awareness for this room
-                const { doc, awareness } = initializeRoom(roomId);
-
-                console.log(`[YJS] Room initialized: ${roomId}`, {
-                hasDocument: !!doc,
-                hasAwareness: !!awareness
-    });
-
-                console.log(`[JOIN] ${socket.id} -> ${roomId}`);
-
-                console.log(
-                    `[ROOM] ${roomId}: ${getRoomMembers(roomId).length} member(s)`
-                );
-
-                // Notify other users
-                socket.to(roomId).emit("user-joined", {
-                    socketId: socket.id
-                });
-
-                // Send current room members
-                socket.emit("room-members", {
-                    roomId,
-                    members: getRoomMembers(roomId)
-                });
-
-            });
-
-            /**
-             * Rejoin Room
-             *
-             * Called after a reconnect or browser refresh.
-             */
-            socket.on("rejoin-room", (roomId) => {
-
-            if (
-                typeof roomId !== "string" ||
-                roomId.trim().length === 0
-            ) {
-
-                socket.emit("room-error", {
-                    message: "Invalid room ID"
-                });
-
-                return;
-            }
-
-                roomId = roomId.trim();
-
-                // Prevent duplicate join
-                if (getRoomMembers(roomId).includes(socket.id)) {
-
-                    socket.emit("room-error", {
-                        message: "Already joined this room"
-                    });
-
-                    return;
-                }
-
-                socket.join(roomId);
-
-            joinRoom(roomId, socket.id);
-
-                console.log(`[REJOIN] ${socket.id} -> ${roomId}`);
-
-                console.log(
-                    `[ROOM] ${roomId}: ${getRoomMembers(roomId).length} member(s)`
-                );
-
-                // Restore room state to reconnecting client
-                socket.emit("room-restored", {
-                    roomId,
-                    members: getRoomMembers(roomId)
-                });
-
-                // Notify everyone else
-                socket.to(roomId).emit("user-reconnected", {
-                    socketId: socket.id
-                });
-
-            });
-
-            /**
-             * Leave Room
-             */
-            socket.on("leaveRoom", (roomId) => {
-
-            if (
-                typeof roomId !== "string" ||
-                roomId.trim().length === 0
-            ) {
-
-                socket.emit("room-error", {
-                    message: "Invalid room ID"
-                });
-
-                return;
-            }
-
-                roomId = roomId.trim();
-
-                socket.leave(roomId);
-
-            leaveRoom(roomId, socket.id);
-
-                console.log(`[LEAVE] ${socket.id} -> ${roomId}`);
-
-                socket.to(roomId).emit("user-left", {
-                    socketId: socket.id
-                });
-
-            });
-
-            /**
-             * Awareness Update
-             *
-             * Stores awareness state and relays it
-             * to all other users in the room.
-             */
-            socket.on("awareness-update", (data) => {
-
-                if (
-                    !data ||
-                    typeof data.roomId !== "string"
-                ) {
-
-                    socket.emit("room-error", {
-                        message: "Invalid awareness payload"
-                    });
-
-                    return;
-                }
-
-                const roomId = data.roomId.trim();
-
-                // B2: Ensure Yjs room exists before processing awareness
-                const { awareness: yjsAwareness } = initializeRoom(roomId);
-
-                console.log(`[YJS] Awareness ready for room: ${roomId}`, {
-                initialized: !!yjsAwareness
-        });
+        socket.on("joinRoom", (roomId) => {
 
             if (!roomId) {
-
-                socket.emit("room-error", {
-                    message: "Room ID cannot be empty"
-                });
-
-                    return;
-                }
-
-            if (!socket.rooms.has(roomId)) {
-
-                socket.emit("room-error", {
-                    message: "You are not a member of this room"
+                socket.emit("errorMessage", {
+                    message: "Room ID is required"
                 });
 
                 return;
             }
 
-                const awareness = {
-
-                    socketId: socket.id,
-
-                    cursor: data.cursor || null,
-
-                    user: data.user || null,
-
-                    timestamp: Date.now()
-
-                };
-
-            // Store awareness state
-            updateAwareness(
+            joinRoom(
                 roomId,
-                socket.id,
-                awareness
+                socket.id
+            );
+
+            socket.join(roomId);
+
+            console.log(
+                `Socket ${socket.id} joined room ${roomId}`
+            );
+
+            socket.emit("joinSuccess", {
+                message: "Joined Successfully",
+                roomId
+            });
+
+            socket.to(roomId).emit(
+                "user-joined",
+                {
+                    socketId: socket.id,
+                    userId:
+                        socket.user?.id ||
+                        socket.user?._id
+                }
+            );
+        });
+
+        // =========================================
+        // LEAVE ROOM
+        // =========================================
+
+        socket.on("leaveRoom", (roomId) => {
+
+            if (!roomId) {
+                return;
+            }
+
+            leaveRoom(
+                roomId,
+                socket.id
+            );
+
+            socket.leave(roomId);
+
+            console.log(
+                `Socket ${socket.id} left room ${roomId}`
+            );
+
+            socket.to(roomId).emit(
+                "user-left",
+                {
+                    socketId: socket.id,
+                    userId:
+                        socket.user?.id ||
+                        socket.user?._id
+                }
+            );
+        });
+
+        // =========================================
+        // DISCONNECT
+        // =========================================
+
+        socket.on("disconnect", (reason) => {
+
+            const leftRooms =
+                removeSocketFromAllRooms(
+                    socket.id
+                );
+
+            console.log(
+                "Socket disconnected:",
+                socket.id
             );
 
             console.log(
-                `[AWARENESS] ${socket.id} -> ${roomId}`,
-                awareness
+                "Reason:",
+                reason
             );
 
-                // Relay awareness to everyone except sender
-                socket.to(roomId).emit(
-                    "awareness-updated",
-                    awareness
-                );
-
+            console.log(
+                "Removed from rooms:",
+                leftRooms
+            );
         });
+    });
+}
 
-            /**
-             * Disconnect
-             */
-            socket.on("disconnect", () => {
+// =========================================
+// GET SOCKET.IO INSTANCE
+// =========================================
 
-            console.log(`[DISCONNECT] ${socket.id} disconnected`);
-
-                const leftRooms = removeSocketFromAllRooms(socket.id);
-
-                removeSocketAwareness(socket.id);
-
-            leftRooms.forEach((roomId) => {
-
-                socket.to(roomId).emit("user-left", {
-                    socketId: socket.id
-                });
-
-                console.log(
-                    `[CLEANUP] Removed ${socket.id} from room ${roomId}`
-                );
-
-                    if (getRoomMembers(roomId).length === 0) {
-                    destroyRoom(roomId);
-                }
-
-                });
-
-        });
-
-        });
-
-    }
+export function getIO() {
+    return ioInstance;
+}

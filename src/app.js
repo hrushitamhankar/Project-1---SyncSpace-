@@ -1,33 +1,53 @@
 import express from "express";
 import cors from "cors";
 
-import { config } from "./config/config.js";
+import authRoutes from "./routes/authRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
 
 const app = express();
 
-// Middleware
 app.use(
     cors({
         origin: process.env.CLIENT_URL,
         credentials: true
     })
 );
+
 app.use(express.json());
 
-// Health Check
-app.get("/health", (req, res) => {
-    res.status(200).json({
-        status: "OK",
-        environment: process.env.NODE_ENV,
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-    });
-});
+app.use(
+    "/api/auth",
+    authRoutes
+);
 
-app.get("/", (req, res) => {
-    res.json({
-        status: "Server Running"
-    });
-});
+app.use(
+    "/api/rooms",
+    roomRoutes
+);
+
+app.get(
+    "/health",
+    (req, res) => {
+        res.status(200).json({
+            status: "OK",
+            environment:
+                process.env.NODE_ENV,
+            uptime:
+                process.uptime(),
+            timestamp:
+                new Date().toISOString()
+        });
+    }
+);
+
+app.get(
+    "/",
+    (req, res) => {
+        res.json({
+            status:
+                "Server Running"
+        });
+    }
+);
 
 export default app;

@@ -1,9 +1,10 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const roomSchema = new mongoose.Schema({
     roomId: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
 
     ownerId: {
@@ -21,11 +22,17 @@ const roomSchema = new mongoose.Schema({
 
             role: {
                 type: String,
-                enum: ["editor", "viewer"],
+                enum: [
+                    "editor",
+                    "viewer"
+                ],
                 default: "viewer"
             }
         }
     ]
 });
 
-module.exports = mongoose.model("Room", roomSchema);
+export default mongoose.model(
+    "Room",
+    roomSchema
+);
