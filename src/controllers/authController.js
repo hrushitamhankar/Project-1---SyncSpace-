@@ -2,22 +2,25 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-export async function signup(req, res) {
+const signup = async (req, res) => {
     try {
         const { name, email, password } = req.body;
 
-        const userExists = await User.findOne({ email });
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                message: "Name, email and password are required"
+            });
+        }
 
-        if (userExists) {
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
             return res.status(400).json({
                 message: "User already exists"
             });
         }
 
-        const hashedPassword = await bcrypt.hash(
-            password,
-            10
-        );
+        const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await User.create({
             name,
@@ -27,7 +30,11 @@ export async function signup(req, res) {
 
         res.status(201).json({
             message: "Signup Successful",
-            user
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            }
         });
 
     } catch (error) {
@@ -37,11 +44,17 @@ export async function signup(req, res) {
             message: error.message
         });
     }
-}
+};
 
-export async function login(req, res) {
+const login = async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "Email and password are required"
+            });
+        }
 
         const user = await User.findOne({ email });
 
@@ -64,7 +77,7 @@ export async function login(req, res) {
 
         const token = jwt.sign(
             {
-                id: user._id
+                id: user._id.toString()
             },
             process.env.JWT_SECRET,
             {
@@ -84,4 +97,9 @@ export async function login(req, res) {
             message: error.message
         });
     }
-}
+};
+
+export {
+    signup,
+    login
+};

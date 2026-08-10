@@ -1,15 +1,19 @@
 import jwt from "jsonwebtoken";
 
 export default function socketAuth(socket, next) {
+
     try {
+
         const token =
-            socket.handshake.auth?.token;
+            socket.handshake.auth?.token ||
+            socket.handshake.headers?.authorization?.replace(
+                "Bearer ",
+                ""
+            );
 
         if (!token) {
             return next(
-                new Error(
-                    "Authentication token required"
-                )
+                new Error("Authentication required")
             );
         }
 
@@ -23,15 +27,14 @@ export default function socketAuth(socket, next) {
         next();
 
     } catch (error) {
+
         console.error(
-            "Socket authentication failed:",
+            "[SOCKET AUTH ERROR]",
             error.message
         );
 
         next(
-            new Error(
-                "Invalid or expired token"
-            )
+            new Error("Invalid or expired token")
         );
     }
 }

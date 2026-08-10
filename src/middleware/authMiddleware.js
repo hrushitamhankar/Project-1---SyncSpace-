@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
 const authMiddleware = (req, res, next) => {
-    const authHeader = req.header("Authorization");
+    const authHeader = req.headers.authorization;
 
     if (!authHeader) {
         return res.status(401).json({
@@ -9,10 +9,13 @@ const authMiddleware = (req, res, next) => {
         });
     }
 
-    const token = authHeader.replace(
-        "Bearer ",
-        ""
-    );
+    if (!authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({
+            message: "Invalid Authorization format"
+        });
+    }
+
+    const token = authHeader.split(" ")[1];
 
     try {
         const decoded = jwt.verify(
