@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import app from "./app.js";
 import initializeSocket from "./sockets/socket.js";
 import { config } from "./config/config.js";
+import { connectDB, disconnectDB } from "./config/db.js";
 
 const server = http.createServer(app);
 
@@ -17,34 +18,44 @@ const io = new Server(server, {
 
 initializeSocket(io);
 
-const serverInstance = server.listen(config.PORT, () => {
+// =========================================
+// START SERVER
+// =========================================
 
-    console.log(`
-======================================
- SyncSpace Backend Started
- Environment : ${config.NODE_ENV}
- Port        : ${config.PORT}
-======================================
-`);
+async function startServer() {
+    try {
+        // Connect MongoDB before accepting requests
+        await connectDB();
 
-});
+        const serverInstance = server.listen(config.PORT, () => {
+            console.log(`Server running on port ${config.PORT}`);
+        });
 
-function gracefulShutdown(signal) {
+        // =========================================
+        // GRACEFUL SHUTDOWN
+        // =========================================
 
-    console.log(
-        `\n${signal} received. Shutting down server...`
-    );
+        function gracefulShutdown(signal) {
+            console.log(
+                `\n${signal} received. Shutting down server...`
+            );
 
-    serverInstance.close(() => {
+            serverInstance.close(async () => {
+                console.log("HTTP server closed.");
 
-        console.log("HTTP server closed.");
+                await disconnectDB();
 
-        process.exit(0);
+                process.exit(0);
+            });
+        }
 
-    });
+        process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+        process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
+    } catch (error) {
+        console.error("Server startup failed:", error.message);
+        process.exit(1);
+    }
 }
 
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+startServer();
