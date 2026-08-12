@@ -1,6 +1,7 @@
 import "./Whiteboard.css";
 import { useState, useEffect } from "react";
 import { Stage, Layer, Line, Rect, Circle, Text } from "react-konva";
+import socket from "../../services/socket";
 
 function Whiteboard({
   tool,
@@ -27,6 +28,8 @@ function Whiteboard({
   const [circles, setCircles] = useState([]);
   const [texts, setTexts] = useState([]);
 
+  const roomId = localStorage.getItem("roomId");
+
 const [history, setHistory] = useState([]);
 const [redoHistory, setRedoHistory] = useState([]);
 
@@ -49,8 +52,66 @@ useEffect(() => {
   if (!pendingText) return;
 
   setTexts((prev) => [...prev, pendingText]);
+
+  socket.emit("whiteboard-draw", {
+    roomId,
+    action: "text",
+    text: pendingText,
+  });
+
   setPendingText(null);
-}, [pendingText, setPendingText]);
+}, [pendingText, setPendingText, roomId]);
+
+useEffect(() => {
+  const handleWhiteboardDraw = (data) => {
+  if (!data || data.roomId !== roomId) return;
+
+  console.log("[WHITEBOARD RECEIVED]", data.action, data);
+
+  if (data.action === "line") {
+    setLines((prev) => [...prev, data.line]);
+  }
+
+  if (data.action === "line-update") {
+    setLines((prev) => {
+      if (prev.length === 0) return prev;
+
+      const updated = [...prev];
+      updated[updated.length - 1] = data.line;
+
+      return updated;
+    });
+  }
+
+   if (data.action === "rectangle") {
+  setRectangles((prev) => [...prev, data.rectangle]);
+}
+
+if (data.action === "rectangle-update") {
+  setRectangles((prev) => {
+    if (prev.length === 0) return prev;
+
+    const updated = [...prev];
+    updated[updated.length - 1] = data.rectangle;
+
+    return updated;
+  });
+}
+
+  if (data.action === "circle") {
+    setCircles((prev) => [...prev, data.circle]);
+  }
+
+  if (data.action === "text") {
+    setTexts((prev) => [...prev, data.text]);
+  }
+};
+  socket.on("whiteboard-draw", handleWhiteboardDraw);
+
+  return () => {
+    socket.off("whiteboard-draw", handleWhiteboardDraw);
+  };
+}, [roomId]);
 
 useEffect(() => {
   const handleKeyDown = (e) => {
@@ -136,16 +197,21 @@ const undo = () => {
 const addCircle = (pos) => {
   saveHistory();
 
-  setCircles((prev) => [
-    ...prev,
-    {
-      x: pos.x,
-      y: pos.y,
-      radius: 40,
-      color: selectedColor,
-      strokeWidth,
-    },
-  ]);
+  const circle = {
+    x: pos.x,
+    y: pos.y,
+    radius: 40,
+    color: selectedColor,
+    strokeWidth,
+  };
+
+  setCircles((prev) => [...prev, circle]);
+
+  socket.emit("whiteboard-draw", {
+    roomId,
+    action: "circle",
+    circle,
+  });
 };
 
 const addRectangle = (pos) => {
@@ -153,30 +219,40 @@ const addRectangle = (pos) => {
 
   setStartPos(pos);
 
-  setRectangles((prev) => [
-    ...prev,
-    {
-      x: pos.x,
-      y: pos.y,
-      width: 0,
-      height: 0,
-      color: selectedColor,
-      strokeWidth,
-    },
-  ]);
+  const rectangle = {
+    x: pos.x,
+    y: pos.y,
+    width: 0,
+    height: 0,
+    color: selectedColor,
+    strokeWidth,
+  };
+
+  setRectangles((prev) => [...prev, rectangle]);
+
+  socket.emit("whiteboard-draw", {
+    roomId,
+    action: "rectangle",
+    rectangle,
+  });
 };
 
 const addLine = (pos) => {
   setIsDrawing(true);
 
-  setLines((prev) => [
-    ...prev,
- {
-  points: [pos.x, pos.y],
-  color: selectedColor,
-  strokeWidth,
-},
-  ]);
+  const line = {
+    points: [pos.x, pos.y],
+    color: selectedColor,
+    strokeWidth,
+  };
+
+  setLines((prev) => [...prev, line]);
+
+  socket.emit("whiteboard-draw", {
+    roomId,
+    action: "line",
+    line,
+  });
 };
 
   const handleMouseDown = (e) => {
@@ -212,16 +288,24 @@ const handleMouseMove = (e) => {
   const point = stage.getPointerPosition();
 
   // Pen drawing
-  if (tool === "pen" && isDrawing) {
+ if (tool === "pen" && isDrawing) {
   setLines((prev) => {
     const updated = [...prev];
 
     const lastLine = updated[updated.length - 1];
 
-    updated[updated.length - 1] = {
+    const updatedLine = {
       ...lastLine,
       points: [...lastLine.points, point.x, point.y],
     };
+
+    updated[updated.length - 1] = updatedLine;
+
+    socket.emit("whiteboard-draw", {
+      roomId,
+      action: "line-update",
+      line: updatedLine,
+    });
 
     return updated;
   });
@@ -232,11 +316,19 @@ const handleMouseMove = (e) => {
   setRectangles((prev) => {
     const updated = [...prev];
 
-    updated[updated.length - 1] = {
+    const updatedRectangle = {
       ...updated[updated.length - 1],
       width: point.x - startPos.x,
       height: point.y - startPos.y,
     };
+
+    updated[updated.length - 1] = updatedRectangle;
+
+    socket.emit("whiteboard-draw", {
+      roomId,
+      action: "rectangle-update",
+      rectangle: updatedRectangle,
+    });
 
     return updated;
   });

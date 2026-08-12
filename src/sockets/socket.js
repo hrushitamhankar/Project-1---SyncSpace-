@@ -306,6 +306,56 @@
 
             });
 
+
+        /**
+         * Whiteboard Drawing Update
+         *
+         * Receives a drawing action from one client
+         * and broadcasts it to the other users in the room.
+         */
+        socket.on("whiteboard-draw", (data) => {
+
+            if (
+                !data ||
+                typeof data.roomId !== "string"
+            ) {
+                socket.emit("room-error", {
+                    message: "Invalid whiteboard payload"
+                });
+
+                return;
+            }
+
+            const roomId = data.roomId.trim();
+
+            if (!roomId) {
+                socket.emit("room-error", {
+                    message: "Room ID cannot be empty"
+                });
+
+                return;
+            }
+
+            if (!socket.rooms.has(roomId)) {
+                socket.emit("room-error", {
+                    message: "You are not a member of this room"
+                });
+
+                return;
+            }
+
+            console.log(
+                `[WHITEBOARD] ${socket.id} -> ${roomId}`,
+                data.action
+            );
+
+            socket.to(roomId).emit("whiteboard-draw", {
+                ...data,
+                socketId: socket.id
+            });
+        });
+
+
             /**
              * Disconnect
              */
