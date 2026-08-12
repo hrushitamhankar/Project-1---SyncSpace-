@@ -1,3 +1,5 @@
+    import * as Y from "yjs";
+
     import {
         joinRoom,
         leaveRoom,
@@ -93,6 +95,13 @@
 
                 // B2: Initialize Yjs document and awareness for this room
                 const { doc, awareness } = initializeRoom(roomId);
+                
+const syncUpdate = Y.encodeStateAsUpdate(doc);
+
+socket.emit("yjs-sync", {
+    roomId,
+    update: Array.from(syncUpdate),
+});
 
                 console.log(`[YJS] Room initialized: ${roomId}`, {
                 hasDocument: !!doc,
@@ -156,10 +165,18 @@
                 // B2: Restore Yjs room after reconnect
                 const { doc, awareness } = initializeRoom(roomId);
 
-                console.log(`[YJS] Room restored: ${roomId}`, {
+
+const syncUpdate = Y.encodeStateAsUpdate(doc);
+
+socket.emit("yjs-sync", {
+    roomId,
+    update: Array.from(syncUpdate),
+});
+
+console.log(`[YJS] Room restored: ${roomId}`, {
     hasDocument: !!doc,
     hasAwareness: !!awareness
-        });
+});
 
                 console.log(`[REJOIN] ${socket.id} -> ${roomId}`);
 
@@ -306,54 +323,56 @@
 
             });
 
+// F1
 
-        /**
-         * Whiteboard Drawing Update
-         *
-         * Receives a drawing action from one client
-         * and broadcasts it to the other users in the room.
-         */
-        socket.on("whiteboard-draw", (data) => {
-
-            if (
-                !data ||
-                typeof data.roomId !== "string"
-            ) {
-                socket.emit("room-error", {
-                    message: "Invalid whiteboard payload"
-                });
-
-                return;
-            }
-
-            const roomId = data.roomId.trim();
-
-            if (!roomId) {
-                socket.emit("room-error", {
-                    message: "Room ID cannot be empty"
-                });
-
-                return;
-            }
-
-            if (!socket.rooms.has(roomId)) {
-                socket.emit("room-error", {
-                    message: "You are not a member of this room"
-                });
-
-                return;
-            }
-
-            console.log(
-                `[WHITEBOARD] ${socket.id} -> ${roomId}`,
-                data.action
-            );
-
-            socket.to(roomId).emit("whiteboard-draw", {
-                ...data,
-                socketId: socket.id
-            });
+            socket.on("yjs-update", (data) => {
+    if (
+        !data ||
+        typeof data.roomId !== "string" ||
+        !Array.isArray(data.update)
+    ) {
+        socket.emit("room-error", {
+            message: "Invalid Yjs update payload"
         });
+
+        return;
+    }
+
+    const roomId = data.roomId.trim();
+
+    if (!roomId) {
+        socket.emit("room-error", {
+            message: "Room ID cannot be empty"
+        });
+
+        return;
+    }
+
+    if (!socket.rooms.has(roomId)) {
+        socket.emit("room-error", {
+            message: "You are not a member of this room"
+        });
+
+        return;
+    }
+
+    const { doc } = initializeRoom(roomId);
+
+    const update = new Uint8Array(data.update);
+
+    Y.applyUpdate(doc, update);
+
+    socket.to(roomId).emit("yjs-update", {
+        roomId,
+        update: Array.from(update)
+    });
+
+    console.log(
+        `[YJS] Update applied: ${socket.id} -> ${roomId}`
+    );
+});
+
+
 
 
             /**

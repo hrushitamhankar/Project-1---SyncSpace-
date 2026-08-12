@@ -1,7 +1,8 @@
 import "./Whiteboard.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Stage, Layer, Line, Rect, Circle, Text } from "react-konva";
 import socket from "../../services/socket";
+import { whiteboard } from "../../services/yjs";
 
 function Whiteboard({
   tool,
@@ -22,6 +23,7 @@ function Whiteboard({
   pendingText,
   setPendingText,
 }){
+  const activeLineId = useRef(null);
 
   const [lines, setLines] = useState([]);
   const [rectangles, setRectangles] = useState([]);
@@ -29,6 +31,38 @@ function Whiteboard({
   const [texts, setTexts] = useState([]);
 
   const roomId = localStorage.getItem("roomId");
+
+useEffect(() => {
+  const syncWhiteboardFromYjs = () => {
+    const items = whiteboard.toArray();
+
+    console.log("[YJS] Restoring whiteboard:", items);
+
+    setLines(
+  items.filter((item) => item.type === "line")
+);
+
+setRectangles(
+  items.filter((item) => item.type === "rectangle")
+);
+
+setCircles(
+  items.filter((item) => item.type === "circle")
+);
+
+setTexts(
+  items.filter((item) => item.type === "text")
+);
+  };
+
+  syncWhiteboardFromYjs();
+
+  whiteboard.observe(syncWhiteboardFromYjs);
+
+  return () => {
+    whiteboard.unobserve(syncWhiteboardFromYjs);
+  };
+}, []);
 
 const [history, setHistory] = useState([]);
 const [redoHistory, setRedoHistory] = useState([]);
@@ -38,6 +72,28 @@ const [redoHistory, setRedoHistory] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const [selectedShape, setSelectedShape] = useState(null);
+
+const deleteShapeFromYjs = (type, index) => {
+  const items = whiteboard.toArray();
+
+  let shapeIndex = -1;
+  let matchingIndex = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type === type) {
+      if (matchingIndex === index) {
+        shapeIndex = i;
+        break;
+      }
+
+      matchingIndex++;
+    }
+  }
+
+  if (shapeIndex !== -1) {
+    whiteboard.delete(shapeIndex, 1);
+  }
+};
 
 useEffect(() => {
   saveHistory();
@@ -51,73 +107,32 @@ useEffect(() => {
 useEffect(() => {
   if (!pendingText) return;
 
-  setTexts((prev) => [...prev, pendingText]);
+  const text = {
+    id: crypto.randomUUID(),
+    ...pendingText,
+  };
 
-  socket.emit("whiteboard-draw", {
-    roomId,
-    action: "text",
-    text: pendingText,
-  });
+  whiteboard.push([
+    {
+      type: "text",
+      ...text,
+    },
+  ]);
 
   setPendingText(null);
-}, [pendingText, setPendingText, roomId]);
+}, [pendingText, setPendingText]);
 
-useEffect(() => {
-  const handleWhiteboardDraw = (data) => {
-  if (!data || data.roomId !== roomId) return;
-
-  console.log("[WHITEBOARD RECEIVED]", data.action, data);
-
-  if (data.action === "line") {
-    setLines((prev) => [...prev, data.line]);
-  }
-
-  if (data.action === "line-update") {
-    setLines((prev) => {
-      if (prev.length === 0) return prev;
-
-      const updated = [...prev];
-      updated[updated.length - 1] = data.line;
-
-      return updated;
-    });
-  }
-
-   if (data.action === "rectangle") {
-  setRectangles((prev) => [...prev, data.rectangle]);
-}
-
-if (data.action === "rectangle-update") {
-  setRectangles((prev) => {
-    if (prev.length === 0) return prev;
-
-    const updated = [...prev];
-    updated[updated.length - 1] = data.rectangle;
-
-    return updated;
-  });
-}
-
-  if (data.action === "circle") {
-    setCircles((prev) => [...prev, data.circle]);
-  }
-
-  if (data.action === "text") {
-    setTexts((prev) => [...prev, data.text]);
-  }
-};
-  socket.on("whiteboard-draw", handleWhiteboardDraw);
-
-  return () => {
-    socket.off("whiteboard-draw", handleWhiteboardDraw);
-  };
-}, [roomId]);
 
 useEffect(() => {
   const handleKeyDown = (e) => {
-    if (e.key !== "Delete" || !selectedShape) return;
+   if (e.key !== "Delete" || !selectedShape) return;
 
-    switch (selectedShape.type) {
+deleteShapeFromYjs(
+  selectedShape.type,
+  selectedShape.index
+);
+
+switch (selectedShape.type) {
       case "rectangle":
         setRectangles((prev) =>
           prev.filter((_, i) => i !== selectedShape.index)
@@ -197,15 +212,23 @@ const undo = () => {
 const addCircle = (pos) => {
   saveHistory();
 
-  const circle = {
-    x: pos.x,
-    y: pos.y,
-    radius: 40,
-    color: selectedColor,
-    strokeWidth,
-  };
+const circle = {
+  id: crypto.randomUUID(),
+  x: pos.x,
+  y: pos.y,
+  radius: 40,
+  color: selectedColor,
+  strokeWidth,
+};
 
   setCircles((prev) => [...prev, circle]);
+
+whiteboard.push([
+  {
+    type: "circle",
+    ...circle,
+  },
+]);
 
   socket.emit("whiteboard-draw", {
     roomId,
@@ -219,41 +242,46 @@ const addRectangle = (pos) => {
 
   setStartPos(pos);
 
-  const rectangle = {
-    x: pos.x,
-    y: pos.y,
-    width: 0,
-    height: 0,
-    color: selectedColor,
-    strokeWidth,
-  };
+const rectangle = {
+  id: crypto.randomUUID(),
+  x: pos.x,
+  y: pos.y,
+  width: 0,
+  height: 0,
+  color: selectedColor,
+  strokeWidth,
+};
 
-  setRectangles((prev) => [...prev, rectangle]);
 
-  socket.emit("whiteboard-draw", {
-    roomId,
-    action: "rectangle",
-    rectangle,
-  });
+whiteboard.push([
+  {
+    type: "rectangle",
+    ...rectangle,
+  },
+]);
+
 };
 
 const addLine = (pos) => {
   setIsDrawing(true);
 
   const line = {
+    id: crypto.randomUUID(),
     points: [pos.x, pos.y],
     color: selectedColor,
     strokeWidth,
   };
 
-  setLines((prev) => [...prev, line]);
+  activeLineId.current = line.id;
 
-  socket.emit("whiteboard-draw", {
-    roomId,
-    action: "line",
-    line,
-  });
+  whiteboard.push([
+    {
+      type: "line",
+      ...line,
+    },
+  ]);
 };
+
 
   const handleMouseDown = (e) => {
     if (e.target !== e.target.getStage()) {
@@ -288,56 +316,72 @@ const handleMouseMove = (e) => {
   const point = stage.getPointerPosition();
 
   // Pen drawing
- if (tool === "pen" && isDrawing) {
-  setLines((prev) => {
-    const updated = [...prev];
+ if (tool === "pen" && isDrawing && activeLineId.current) {
+  const items = whiteboard.toArray();
 
-    const lastLine = updated[updated.length - 1];
+  const lineIndex = items.findIndex(
+    (item) => item.id === activeLineId.current
+  );
 
-    const updatedLine = {
-      ...lastLine,
-      points: [...lastLine.points, point.x, point.y],
-    };
+  if (lineIndex === -1) return;
 
-    updated[updated.length - 1] = updatedLine;
+  const currentLine = items[lineIndex];
 
-    socket.emit("whiteboard-draw", {
-      roomId,
-      action: "line-update",
-      line: updatedLine,
-    });
+  const updatedLine = {
+    ...currentLine,
+    points: [...currentLine.points, point.x, point.y],
+  };
 
-    return updated;
-  });
+  whiteboard.delete(lineIndex, 1);
+
+  whiteboard.insert(lineIndex, [
+    {
+      type: "line",
+      ...updatedLine,
+    },
+  ]);
 }
 
   // Rectangle drawing
   if (tool === "rectangle" && startPos) {
-  setRectangles((prev) => {
-    const updated = [...prev];
+  const items = whiteboard.toArray();
 
-    const updatedRectangle = {
-      ...updated[updated.length - 1],
-      width: point.x - startPos.x,
-      height: point.y - startPos.y,
-    };
+  const rectanglesInYjs = items.filter(
+    (item) => item.type === "rectangle"
+  );
 
-    updated[updated.length - 1] = updatedRectangle;
+  const currentRectangle =
+    rectanglesInYjs[rectanglesInYjs.length - 1];
 
-    socket.emit("whiteboard-draw", {
-      roomId,
-      action: "rectangle-update",
-      rectangle: updatedRectangle,
-    });
+  if (!currentRectangle) return;
 
-    return updated;
-  });
+  const updatedRectangle = {
+    ...currentRectangle,
+    width: point.x - startPos.x,
+    height: point.y - startPos.y,
+  };
+
+  const yIndex = items.findIndex(
+    (item) => item.id === currentRectangle.id
+  );
+
+  if (yIndex !== -1) {
+    whiteboard.delete(yIndex, 1);
+
+    whiteboard.insert(yIndex, [
+      {
+        type: "rectangle",
+        ...updatedRectangle,
+      },
+    ]);
+  }
 }
 };
 
 const handleMouseUp = () => {
   setIsDrawing(false);
   setStartPos(null);
+  activeLineId.current = null;
 };
 
   return (
@@ -372,10 +416,10 @@ strokeWidth={
               lineJoin="round"
 
   onClick={() => {
-  if (tool === "eraser") {
-    setLines((prev) => prev.filter((_, i) => i !== index));
-    return;
-  }
+if (tool === "eraser") {
+  deleteShapeFromYjs("line", index);
+  return;
+}
 
   setSelectedShape({
     type: "line",
@@ -408,27 +452,45 @@ strokeWidth={
 }
   draggable
   onClick={() => {
-  if (tool === "eraser") {
-    setRectangles((prev) => prev.filter((_, i) => i !== index));
-    return;
-  }
+if (tool === "eraser") {
+  deleteShapeFromYjs("rectangle", index);
+  return;
+}
 
   setSelectedShape({
     type: "rectangle",
     index,
   });
 }}
-  onDragEnd={(e) => {
-    const updated = [...rectangles];
+onDragEnd={(e) => {
+  const updated = [...rectangles];
 
-    updated[index] = {
-      ...updated[index],
-      x: e.target.x(),
-      y: e.target.y(),
-    };
+  const updatedRectangle = {
+    ...updated[index],
+    x: e.target.x(),
+    y: e.target.y(),
+  };
 
-    setRectangles(updated);
-  }}
+  updated[index] = updatedRectangle;
+  setRectangles(updated);
+
+  const items = whiteboard.toArray();
+
+  const yIndex = items.findIndex(
+    (item) => item.id === updatedRectangle.id
+  );
+
+  if (yIndex !== -1) {
+    whiteboard.delete(yIndex, 1);
+
+    whiteboard.insert(yIndex, [
+      {
+        type: "rectangle",
+        ...updatedRectangle,
+      },
+    ]);
+  }
+}}
 />
  ))}
 
@@ -454,27 +516,45 @@ strokeWidth={
 }
   draggable
   onClick={() => {
-  if (tool === "eraser") {
-    setCircles((prev) => prev.filter((_, i) => i !== index));
-    return;
-  }
+if (tool === "eraser") {
+  deleteShapeFromYjs("circle", index);
+  return;
+}
 
   setSelectedShape({
     type: "circle",
     index,
   });
 }}
-  onDragEnd={(e) => {
-    const updated = [...circles];
+onDragEnd={(e) => {
+  const updated = [...circles];
 
-    updated[index] = {
-      ...updated[index],
-      x: e.target.x(),
-      y: e.target.y(),
-    };
+  const updatedCircle = {
+    ...updated[index],
+    x: e.target.x(),
+    y: e.target.y(),
+  };
 
-    setCircles(updated);
-  }}
+  updated[index] = updatedCircle;
+  setCircles(updated);
+
+  const items = whiteboard.toArray();
+
+  const yIndex = items.findIndex(
+    (item) => item.id === updatedCircle.id
+  );
+
+  if (yIndex !== -1) {
+    whiteboard.delete(yIndex, 1);
+
+    whiteboard.insert(yIndex, [
+      {
+        type: "circle",
+        ...updatedCircle,
+      },
+    ]);
+  }
+}}
 />
 ))}
 
@@ -493,27 +573,45 @@ strokeWidth={
 }
     draggable
   onClick={() => {
-  if (tool === "eraser") {
-    setTexts((prev) => prev.filter((_, i) => i !== index));
-    return;
-  }
+if (tool === "eraser") {
+  deleteShapeFromYjs("text", index);
+  return;
+}
 
   setSelectedShape({
     type: "text",
     index,
   });
 }}
-    onDragEnd={(e) => {
-      const updated = [...texts];
+onDragEnd={(e) => {
+  const updated = [...texts];
 
-      updated[index] = {
-        ...updated[index],
-        x: e.target.x(),
-        y: e.target.y(),
-      };
+  const updatedText = {
+    ...updated[index],
+    x: e.target.x(),
+    y: e.target.y(),
+  };
 
-      setTexts(updated);
-    }}
+  updated[index] = updatedText;
+  setTexts(updated);
+
+  const items = whiteboard.toArray();
+
+  const yIndex = items.findIndex(
+    (item) => item.id === updatedText.id
+  );
+
+  if (yIndex !== -1) {
+    whiteboard.delete(yIndex, 1);
+
+    whiteboard.insert(yIndex, [
+      {
+        type: "text",
+        ...updatedText,
+      },
+    ]);
+  }
+}}
   />
 ))}
         </Layer>
