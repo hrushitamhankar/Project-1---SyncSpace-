@@ -138,6 +138,28 @@ export async function saveReplaySnapshot(roomId) {
 }
 
 /**
+ * Save the final replay snapshot before destroying the room.
+ */
+export async function finalizeReplaySnapshot(roomId) {
+
+    const timer = snapshotTimers.get(roomId);
+
+    if (timer) {
+        clearTimeout(timer);
+        snapshotTimers.delete(roomId);
+    }
+
+    try {
+        await saveReplaySnapshot(roomId);
+    } catch (error) {
+        console.error(
+            `[REPLAY] Failed to save final snapshot for ${roomId}:`,
+            error
+        );
+    }
+}
+
+/**
  * Destroy all Yjs resources for a room.
  */
 export function destroyRoom(roomId) {

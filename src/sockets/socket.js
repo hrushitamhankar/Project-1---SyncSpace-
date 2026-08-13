@@ -14,7 +14,8 @@ import {
     initializeRoom,
     destroyRoom,
     restoreRoom,
-    persistRoom
+    persistRoom,
+    finalizeReplaySnapshot
 } from "../yjs/manager.js";
 
 import {
@@ -39,11 +40,11 @@ import {
  * awareness-updated
  */
 
-/**
- * Initialize all Socket.IO event handlers.
- *
- * @param {import("socket.io").Server} io
- */
+ /**
+  * Initialize all Socket.IO event handlers.
+  *
+  * @param {import("socket.io").Server} io
+  */
 export default function initializeSocket(io) {
 
     io.on("connection", (socket) => {
@@ -94,7 +95,7 @@ export default function initializeSocket(io) {
             // B2: Restore persisted Yjs document if available
             const doc = await restoreRoom(roomId);
 
-            // Initialize Yjs awareness for the room
+            // Initialize Yjs awareness
             const { awareness } = initializeRoom(roomId);
 
             console.log(`[YJS] Room initialized: ${roomId}`, {
@@ -213,12 +214,14 @@ export default function initializeSocket(io) {
 
             /**
              * B2:
-             * Persist the Yjs document before destroying
-             * the room when the last member leaves.
+             * Persist the current document and final replay
+             * snapshot before destroying an empty room.
              */
             if (members.length === 0) {
 
                 await persistRoom(roomId);
+
+                await finalizeReplaySnapshot(roomId);
 
                 destroyRoom(roomId);
             }
@@ -343,12 +346,14 @@ export default function initializeSocket(io) {
 
                 /**
                  * B2:
-                 * Persist the document before destroying
-                 * the Yjs room when no members remain.
+                 * Persist the current document and final replay
+                 * snapshot before destroying an empty room.
                  */
                 if (getRoomMembers(roomId).length === 0) {
 
                     await persistRoom(roomId);
+
+                    await finalizeReplaySnapshot(roomId);
 
                     destroyRoom(roomId);
                 }
