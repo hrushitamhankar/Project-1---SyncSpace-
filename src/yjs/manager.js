@@ -19,6 +19,10 @@ import {
     saveReplaySnapshot as saveReplaySnapshotToDatabase
 } from "../db/replayRepository.js";
 
+import {
+    trimReplayHistory
+} from "../db/replayRepository.js";
+
 const SNAPSHOT_INTERVAL = 5000;
 
 const snapshotTimers = new Map();
@@ -131,6 +135,11 @@ export async function saveReplaySnapshot(roomId) {
         roomId,
         update
     );
+
+    await trimReplayHistory(
+    roomId,
+    100
+);
 
     console.log(
         `[REPLAY] Snapshot created: ${roomId}`

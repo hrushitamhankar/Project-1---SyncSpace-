@@ -6,7 +6,9 @@ const COLLECTION_NAME = "yjs_replay_history";
  * Get the MongoDB collection used for replay history.
  */
 function getCollection() {
-    const dbName = process.env.MONGODB_DB || "syncspace";
+
+    const dbName =
+        process.env.MONGODB_DB || "syncspace";
 
     return client
         .db(dbName)
@@ -19,16 +21,25 @@ function getCollection() {
  * @param {string} roomId
  * @param {Uint8Array} update
  */
-export async function saveReplaySnapshot(roomId, update) {
+export async function saveReplaySnapshot(
+    roomId,
+    update
+) {
 
     if (!roomId || !update) {
-        throw new Error("roomId and update are required");
+        throw new Error(
+            "roomId and update are required"
+        );
     }
 
     await getCollection().insertOne({
+
         roomId,
+
         update: Buffer.from(update),
+
         timestamp: new Date()
+
     });
 
     console.log(
@@ -40,12 +51,17 @@ export async function saveReplaySnapshot(roomId, update) {
  * Get ordered replay history for a room.
  *
  * @param {string} roomId
- * @returns {Promise<Array>}
+ * @param {number} limit
  */
-export async function getReplayHistory(roomId, limit = 100) {
+export async function getReplayHistory(
+    roomId,
+    limit = 100
+) {
 
     if (!roomId) {
-        throw new Error("roomId is required");
+        throw new Error(
+            "roomId is required"
+        );
     }
 
     return getCollection()
@@ -58,10 +74,14 @@ export async function getReplayHistory(roomId, limit = 100) {
 /**
  * Remove replay history for a room.
  */
-export async function clearReplayHistory(roomId) {
+export async function clearReplayHistory(
+    roomId
+) {
 
     if (!roomId) {
-        throw new Error("roomId is required");
+        throw new Error(
+            "roomId is required"
+        );
     }
 
     await getCollection().deleteMany({
@@ -70,5 +90,55 @@ export async function clearReplayHistory(roomId) {
 
     console.log(
         `[REPLAY] History cleared: ${roomId}`
+    );
+}
+
+/**
+ * Keep only the latest snapshots for a room.
+ */
+export async function trimReplayHistory(
+    roomId,
+    maxSnapshots = 100
+) {
+
+    if (!roomId) {
+        throw new Error(
+            "roomId is required"
+        );
+    }
+
+    const collection = getCollection();
+
+    const snapshots = await collection
+        .find(
+            { roomId },
+            {
+                projection: {
+                    _id: 1
+                }
+            }
+        )
+        .sort({
+            timestamp: -1
+        })
+        .skip(maxSnapshots)
+        .toArray();
+
+    if (snapshots.length === 0) {
+        return;
+    }
+
+    const ids = snapshots.map(
+        (snapshot) => snapshot._id
+    );
+
+    await collection.deleteMany({
+        _id: {
+            $in: ids
+        }
+    });
+
+    console.log(
+        `[REPLAY] Trimmed ${snapshots.length} old snapshots: ${roomId}`
     );
 }
