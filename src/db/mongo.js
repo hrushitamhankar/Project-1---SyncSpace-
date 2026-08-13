@@ -2,6 +2,8 @@ import dns from "node:dns";
 
 import { MongoClient } from "mongodb";
 
+import { createIndexes } from "./indexes.js";
+
 dns.setServers(["8.8.8.8"]);
 
 const uri = process.env.MONGODB_URI;
@@ -29,6 +31,8 @@ export async function connectMongo() {
     );
 
     console.log("[MONGO] Connected to MongoDB");
+
+    await createIndexes();
 
     return database;
 }
