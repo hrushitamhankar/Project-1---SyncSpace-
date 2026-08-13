@@ -1,10 +1,51 @@
 import express from "express";
 
 import {
-    getReplayHistory
+    getReplayHistory,
+    getReplayMetadata
 } from "../db/replayRepository.js";
 
 const router = express.Router();
+
+/**
+ * Get replay metadata for a room.
+ *
+ * GET /api/replay/:roomId/metadata
+ */
+router.get("/:roomId/metadata", async (req, res) => {
+
+    const { roomId } = req.params;
+
+    if (!roomId || roomId.trim().length === 0) {
+
+        return res.status(400).json({
+            error: "Invalid room ID"
+        });
+    }
+
+    try {
+
+        const metadata = await getReplayMetadata(
+            roomId.trim()
+        );
+
+        return res.status(200).json({
+            roomId: roomId.trim(),
+            ...metadata
+        });
+
+    } catch (error) {
+
+        console.error(
+            "[REPLAY] Failed to fetch metadata:",
+            error
+        );
+
+        return res.status(500).json({
+            error: "Failed to fetch replay metadata"
+        });
+    }
+});
 
 /**
  * Get replay history for a room.
@@ -16,12 +57,15 @@ router.get("/:roomId", async (req, res) => {
     const { roomId } = req.params;
 
     if (!roomId || roomId.trim().length === 0) {
+
         return res.status(400).json({
             error: "Invalid room ID"
         });
     }
 
-    const requestedLimit = Number(req.query.limit);
+    const requestedLimit = Number(
+        req.query.limit
+    );
 
     const limit =
         Number.isInteger(requestedLimit) &&

@@ -6,9 +6,7 @@ const COLLECTION_NAME = "yjs_replay_history";
  * Get the MongoDB collection used for replay history.
  */
 function getCollection() {
-
-    const dbName =
-        process.env.MONGODB_DB || "syncspace";
+    const dbName = process.env.MONGODB_DB || "syncspace";
 
     return client
         .db(dbName)
@@ -17,29 +15,17 @@ function getCollection() {
 
 /**
  * Save a Yjs snapshot for replay.
- *
- * @param {string} roomId
- * @param {Uint8Array} update
  */
-export async function saveReplaySnapshot(
-    roomId,
-    update
-) {
+export async function saveReplaySnapshot(roomId, update) {
 
     if (!roomId || !update) {
-        throw new Error(
-            "roomId and update are required"
-        );
+        throw new Error("roomId and update are required");
     }
 
     await getCollection().insertOne({
-
         roomId,
-
         update: Buffer.from(update),
-
         timestamp: new Date()
-
     });
 
     console.log(
@@ -49,9 +35,6 @@ export async function saveReplaySnapshot(
 
 /**
  * Get ordered replay history for a room.
- *
- * @param {string} roomId
- * @param {number} limit
  */
 export async function getReplayHistory(
     roomId,
@@ -59,9 +42,7 @@ export async function getReplayHistory(
 ) {
 
     if (!roomId) {
-        throw new Error(
-            "roomId is required"
-        );
+        throw new Error("roomId is required");
     }
 
     return getCollection()
@@ -72,16 +53,48 @@ export async function getReplayHistory(
 }
 
 /**
- * Remove replay history for a room.
+ * Get replay metadata for a room.
  */
-export async function clearReplayHistory(
-    roomId
-) {
+export async function getReplayMetadata(roomId) {
 
     if (!roomId) {
-        throw new Error(
-            "roomId is required"
-        );
+        throw new Error("roomId is required");
+    }
+
+    const snapshots = await getCollection()
+        .find(
+            { roomId },
+            {
+                projection: {
+                    timestamp: 1
+                }
+            }
+        )
+        .sort({ timestamp: 1 })
+        .toArray();
+
+    return {
+        count: snapshots.length,
+
+        firstTimestamp:
+            snapshots.length > 0
+                ? snapshots[0].timestamp
+                : null,
+
+        lastTimestamp:
+            snapshots.length > 0
+                ? snapshots[snapshots.length - 1].timestamp
+                : null
+    };
+}
+
+/**
+ * Remove replay history for a room.
+ */
+export async function clearReplayHistory(roomId) {
+
+    if (!roomId) {
+        throw new Error("roomId is required");
     }
 
     await getCollection().deleteMany({
@@ -102,9 +115,7 @@ export async function trimReplayHistory(
 ) {
 
     if (!roomId) {
-        throw new Error(
-            "roomId is required"
-        );
+        throw new Error("roomId is required");
     }
 
     const collection = getCollection();
