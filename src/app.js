@@ -5,6 +5,7 @@ import { config } from "./config/config.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import roomRoutes from "./routes/roomRoutes.js";
+import replayRouter from "./routes/replay.js";
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(
 
 app.use(express.json());
 
+app.use("/api/replay", replayRouter);
 // =========================================
 // HEALTH CHECK - KEEP EXISTING
 // =========================================
