@@ -12,7 +12,10 @@ if (!uri) {
     throw new Error("MONGODB_URI is not defined");
 }
 
-export const client = new MongoClient(uri);
+export const client = new MongoClient(uri, {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000
+});
 
 let database = null;
 
@@ -20,27 +23,41 @@ let database = null;
  * Connect to MongoDB and return the database instance.
  */
 export async function connectMongo() {
+
     if (database) {
         return database;
     }
 
-    await client.connect();
+    try {
 
-    database = client.db(
-        process.env.MONGODB_DB || "syncspace"
-    );
+        await client.connect();
 
-    console.log("[MONGO] Connected to MongoDB");
+        database = client.db(
+            process.env.MONGODB_DB || "syncspace"
+        );
 
-    await createIndexes();
+        console.log("[MONGO] Connected to MongoDB");
 
-    return database;
+        await createIndexes();
+
+        return database;
+
+    } catch (error) {
+
+        console.error(
+            "[MONGO] Connection failed:",
+            error
+        );
+
+        throw error;
+    }
 }
 
 /**
  * Get the existing database connection.
  */
 export function getMongoDatabase() {
+
     if (!database) {
         throw new Error("MongoDB is not connected");
     }
@@ -52,9 +69,12 @@ export function getMongoDatabase() {
  * Close MongoDB connection.
  */
 export async function closeMongo() {
+
     await client.close();
 
     database = null;
 
-    console.log("[MONGO] MongoDB connection closed");
+    console.log(
+        "[MONGO] MongoDB connection closed"
+    );
 }
