@@ -16,6 +16,18 @@ export function getDocument(roomId) {
     return documents.get(roomId);
 }
 
+
+/**
+ * Store a restored Y.Doc in memory.
+ */
+export function setDocument(roomId, doc) {
+    documents.set(roomId, doc);
+
+    console.log(`[YJS] Restored document for room: ${roomId}`);
+
+    return doc;
+}
+
 /**
  * Remove document when room is destroyed.
  */
