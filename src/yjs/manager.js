@@ -19,48 +19,48 @@ import {
     saveReplaySnapshot as saveReplaySnapshotToDatabase
 } from "../db/replayRepository.js";
 
+const SNAPSHOT_INTERVAL = 5000;
+
+const snapshotTimers = new Map();
+
 /**
  * Initialize a Yjs room.
- *
- * Creates or retrieves the room's Y.Doc
- * and Awareness instance.
- *
- * @param {string} roomId
- * @returns {{
- *   doc: import("yjs").Doc,
- *   awareness: import("y-protocols/awareness").Awareness
- * }}
  */
 export function initializeRoom(roomId) {
 
     const doc = getDocument(roomId);
     const awareness = getAwareness(roomId);
 
-    // B2: Listen for Yjs document updates
     if (!doc.__replayListenerAttached) {
 
-        doc.on("update", async () => {
+        doc.on("update", () => {
 
-            try {
-
-                await saveReplaySnapshot(roomId);
-
-            } catch (error) {
-
-                console.error(
-                    `[REPLAY] Failed to save snapshot for ${roomId}:`,
-                    error
-                );
-
+            if (snapshotTimers.has(roomId)) {
+                return;
             }
 
+            const timer = setTimeout(async () => {
+
+                snapshotTimers.delete(roomId);
+
+                try {
+                    await saveReplaySnapshot(roomId);
+                } catch (error) {
+                    console.error(
+                        `[REPLAY] Failed to save snapshot for ${roomId}:`,
+                        error
+                    );
+                }
+
+            }, SNAPSHOT_INTERVAL);
+
+            snapshotTimers.set(roomId, timer);
         });
 
-        // Prevent duplicate listeners
         doc.__replayListenerAttached = true;
 
         console.log(
-            `[REPLAY] Update listener attached: ${roomId}`
+            `[REPLAY] Periodic snapshot listener attached: ${roomId}`
         );
     }
 
@@ -83,16 +83,12 @@ export function getRoomState(roomId) {
 
 /**
  * Restore a Yjs document from MongoDB.
- *
- * If no persisted document exists,
- * a new in-memory document is created.
  */
 export async function restoreRoom(roomId) {
 
     const storedDocument = await loadDocument(roomId);
 
     if (!storedDocument) {
-
         return getDocument(roomId);
     }
 
@@ -123,8 +119,7 @@ export async function persistRoom(roomId) {
 }
 
 /**
- * Save the current Yjs document state
- * as a replay snapshot.
+ * Save the current Yjs document as a replay snapshot.
  */
 export async function saveReplaySnapshot(roomId) {
 
@@ -146,6 +141,13 @@ export async function saveReplaySnapshot(roomId) {
  * Destroy all Yjs resources for a room.
  */
 export function destroyRoom(roomId) {
+
+    const timer = snapshotTimers.get(roomId);
+
+    if (timer) {
+        clearTimeout(timer);
+        snapshotTimers.delete(roomId);
+    }
 
     removeAwareness(roomId);
     removeDocument(roomId);
