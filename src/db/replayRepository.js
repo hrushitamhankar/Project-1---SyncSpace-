@@ -1,4 +1,5 @@
 import { client } from "./mongo.js";
+import { ObjectId } from "mongodb";
 
 const COLLECTION_NAME = "yjs_replay_history";
 
@@ -86,6 +87,30 @@ export async function getReplayMetadata(roomId) {
                 ? snapshots[snapshots.length - 1].timestamp
                 : null
     };
+}
+
+/**
+ * Get a single replay snapshot by ID.
+ */
+export async function getReplaySnapshot(
+    roomId,
+    snapshotId
+) {
+
+    if (!roomId || !snapshotId) {
+        throw new Error(
+            "roomId and snapshotId are required"
+        );
+    }
+
+    if (!ObjectId.isValid(snapshotId)) {
+        return null;
+    }
+
+    return getCollection().findOne({
+        _id: new ObjectId(snapshotId),
+        roomId
+    });
 }
 
 /**
