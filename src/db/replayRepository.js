@@ -42,7 +42,7 @@ export async function saveReplaySnapshot(roomId, update) {
  * @param {string} roomId
  * @returns {Promise<Array>}
  */
-export async function getReplayHistory(roomId) {
+export async function getReplayHistory(roomId, limit = 100) {
 
     if (!roomId) {
         throw new Error("roomId is required");
@@ -51,6 +51,7 @@ export async function getReplayHistory(roomId) {
     return getCollection()
         .find({ roomId })
         .sort({ timestamp: 1 })
+        .limit(limit)
         .toArray();
 }
 
