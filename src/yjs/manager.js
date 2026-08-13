@@ -1,3 +1,5 @@
+import * as Y from "yjs";
+
 import {
     getDocument,
     setDocument
@@ -13,10 +15,15 @@ import {
     loadDocument
 } from "../db/yjsRepository.js";
 
+import {
+    saveReplaySnapshot as saveReplaySnapshotToDatabase
+} from "../db/replayRepository.js";
+
 /**
  * Initialize a Yjs room.
  *
- * Creates (or retrieves) the room's Y.Doc and Awareness instance.
+ * Creates or retrieves the room's Y.Doc
+ * and Awareness instance.
  *
  * @param {string} roomId
  * @returns {{
@@ -28,6 +35,34 @@ export function initializeRoom(roomId) {
 
     const doc = getDocument(roomId);
     const awareness = getAwareness(roomId);
+
+    // B2: Listen for Yjs document updates
+    if (!doc.__replayListenerAttached) {
+
+        doc.on("update", async () => {
+
+            try {
+
+                await saveReplaySnapshot(roomId);
+
+            } catch (error) {
+
+                console.error(
+                    `[REPLAY] Failed to save snapshot for ${roomId}:`,
+                    error
+                );
+
+            }
+
+        });
+
+        // Prevent duplicate listeners
+        doc.__replayListenerAttached = true;
+
+        console.log(
+            `[REPLAY] Update listener attached: ${roomId}`
+        );
+    }
 
     return {
         doc,
@@ -84,6 +119,26 @@ export async function persistRoom(roomId) {
 
     console.log(
         `[YJS] Persisted room: ${roomId}`
+    );
+}
+
+/**
+ * Save the current Yjs document state
+ * as a replay snapshot.
+ */
+export async function saveReplaySnapshot(roomId) {
+
+    const doc = getDocument(roomId);
+
+    const update = Y.encodeStateAsUpdate(doc);
+
+    await saveReplaySnapshotToDatabase(
+        roomId,
+        update
+    );
+
+    console.log(
+        `[REPLAY] Snapshot created: ${roomId}`
     );
 }
 
