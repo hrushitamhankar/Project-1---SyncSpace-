@@ -1,4 +1,7 @@
+import dns from "node:dns";
 import mongoose from "mongoose";
+
+dns.setServers(["8.8.8.8"]);
 
 export async function connectDB() {
     try {
@@ -8,11 +11,18 @@ export async function connectDB() {
             throw new Error("MONGO_URI is not defined in .env");
         }
 
-        await mongoose.connect(mongoURI);
+        await mongoose.connect(mongoURI, {
+            serverSelectionTimeoutMS: 10000,
+            connectTimeoutMS: 10000
+        });
 
         console.log("MongoDB Connected");
     } catch (error) {
-        console.error("MongoDB connection failed:", error.message);
+        console.error(
+            "MongoDB connection failed:",
+            error.message
+        );
+
         process.exit(1);
     }
 }
@@ -22,6 +32,9 @@ export async function disconnectDB() {
         await mongoose.connection.close();
         console.log("MongoDB Disconnected");
     } catch (error) {
-        console.error("MongoDB disconnect error:", error.message);
+        console.error(
+            "MongoDB disconnect error:",
+            error.message
+        );
     }
 }
