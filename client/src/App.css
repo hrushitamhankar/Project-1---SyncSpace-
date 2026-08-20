@@ -1,0 +1,241 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.syncspace-app {
+  min-height: 100vh;
+  padding: 20px;
+  background: #0f172a;
+}
+
+.app-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.app-header h1 {
+  margin: 0 0 8px;
+  color: #ffffff;
+  font-size: 42px;
+}
+
+.app-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 18px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(1500px, 100%);
+  height: 75vh;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.whiteboard-pane {
+  padding: 35px;
+  color: #0f172a;
+  background: #ffffff;
+  border-right: 3px solid #334155;
+}
+
+.whiteboard-pane h2 {
+  margin-top: 0;
+  font-size: 30px;
+}
+
+.editor-pane {
+  min-width: 0;
+  height: 100%;
+  background: #1e1e1e;
+}
+
+.code-editor-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.connection-status {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #334155;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.connection-status.connected {
+  background: #15803d;
+}
+
+.connection-status.connecting {
+  background: #b45309;
+}
+
+.connection-status.disconnected {
+  background: #b91c1c;
+}
+
+.yRemoteSelection {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+
+.yRemoteSelectionHead {
+  position: absolute;
+  z-index: 20;
+  height: 100%;
+  border-left: 3px solid #22c55e;
+}
+
+@media (max-width: 768px) {
+  .syncspace-app {
+    padding: 12px;
+  }
+
+  .app-header h1 {
+    font-size: 32px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 110vh;
+  }
+
+  .whiteboard-pane {
+    border-right: none;
+    border-bottom: 3px solid #334155;
+  }
+}
+/* Compact Monaco editor toolbar */
+
+.editor-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 12px !important;
+  flex-wrap: nowrap !important;
+  overflow: hidden;
+  background: #202020;
+}
+
+.toolbar-control {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex: 0 0 auto !important;
+}
+
+.toolbar-control label {
+  margin: 0 !important;
+  color: #e5e7eb;
+  font-size: 14px !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.toolbar-control select {
+  width: auto !important;
+  min-width: 95px !important;
+  height: 34px;
+  padding: 4px 7px;
+  font-size: 14px;
+}
+
+#font-size-select {
+  min-width: 72px !important;
+}
+
+.connection-status {
+  position: static !important;
+  inset: auto !important;
+  width: auto !important;
+  height: 34px !important;
+  margin-left: auto !important;
+  padding: 6px 12px !important;
+  flex: 0 0 auto !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+/* Fix editor height and toolbar overflow */
+
+.code-editor-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100%;
+  height: auto !important;
+  min-height: 58px;
+  padding: 8px 10px !important;
+  flex: 0 0 auto !important;
+  flex-wrap: wrap !important;
+  overflow: visible !important;
+}
+
+.toolbar-control {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex: 1 1 150px !important;
+  min-width: 0;
+}
+
+.toolbar-control select {
+  flex: 1;
+  width: auto !important;
+  min-width: 75px !important;
+  max-width: 140px;
+}
+
+.connection-status {
+  position: static !important;
+  inset: auto !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  height: 34px !important;
+  margin-left: auto !important;
+  padding: 6px 12px !important;
+  white-space: nowrap;
+}
+
+.editor-container {
+  flex: 1 1 0 !important;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
