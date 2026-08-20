@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "start": "node server.js",
-  "dev": "nodemon server.js"
-},
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FOOX-BAT/Project-1---SyncSpace-.git"
@@ -24,7 +24,9 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.7.4"
+    "mongoose": "^9.7.4",
+    "socket.io": "^4.8.3",
+    "yjs": "^13.6.32"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

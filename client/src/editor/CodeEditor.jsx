@@ -1,788 +1,665 @@
 import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import * as Y from "yjs";
-import { WebsocketProvider } from "y-websocket";
-import { MonacoBinding } from "y-monaco";
+import { io } from "socket.io-client";
 import "./CodeEditor.css";
 
-const STARTER_CODE = `function greet(name) {
-  console.log("Hello, " + name);
+const SOCKET_URL = "http://localhost:5000";
+
+const ROOM_ID = "syncspace-code-room-v4";
+
+const INITIAL_CODE = `function greet(name) {
+    console.log("Hello, " + name);
 }
 
-greet("Rakesh");
-`;
-
-const DEFAULT_ROOM_NAME = "syncspace-code-room-v3";
-
-const getRoomName = () => {
-  const searchParams = new URLSearchParams(window.location.search);
-  const roomName = searchParams.get("room");
-
-  return roomName?.trim() || DEFAULT_ROOM_NAME;
-};
-
-const sanitizeFileName = (name) => {
-  const cleanedName = name.trim().replace(/[<>:"/\\|?*]/g, "_");
-
-  return cleanedName || "main.js";
-};
-
-const ROOM_NAME = getRoomName();
+greet("Devasya");`;
 
 function CodeEditor() {
-  const bindingRef = useRef(null);
-  const providerRef = useRef(null);
-  const documentRef = useRef(null);
-  const editorRef = useRef(null);
-  const awarenessChangeHandlerRef = useRef(null);
-  const editorDisposablesRef = useRef([]);
+    const [code, setCode] =
+        useState(INITIAL_CODE);
 
-  const copyTimerRef = useRef(null);
-  const shareTimerRef = useRef(null);
-  const downloadTimerRef = useRef(null);
+    const [connected, setConnected] =
+        useState(false);
 
-  const [connectionStatus, setConnectionStatus] =
-    useState("connecting");
+    const [activeUsers, setActiveUsers] =
+        useState(0);
 
-  const [language, setLanguage] = useState("javascript");
-  const [theme, setTheme] = useState("vs-dark");
-  const [fontSize, setFontSize] = useState(16);
-  const [showLineNumbers, setShowLineNumbers] = useState(true);
-  const [wordWrap, setWordWrap] = useState(false);
-  const [showMinimap, setShowMinimap] = useState(true);
-  const [tabSize, setTabSize] = useState(2);
-  const [readOnly, setReadOnly] = useState(false);
-  const [fileName, setFileName] = useState("main.js");
-  const [showOptions, setShowOptions] = useState(false);
+    const ydocRef =
+        useRef(null);
 
-  const [activeUsers, setActiveUsers] = useState(0);
-  const [activeUserDetails, setActiveUserDetails] = useState([]);
+    const ytextRef =
+        useRef(null);
 
-  const [copyFeedback, setCopyFeedback] = useState("");
-  const [shareFeedback, setShareFeedback] = useState("");
-  const [downloadFeedback, setDownloadFeedback] = useState("");
+    const socketRef =
+        useRef(null);
 
-  const [cursorPosition, setCursorPosition] = useState({
-    lineNumber: 1,
-    column: 1,
-  });
+    const remoteUpdateRef =
+        useRef(false);
 
-  const [documentStats, setDocumentStats] = useState({
-    lineCount: 1,
-    characterCount: 0,
-  });
+    useEffect(() => {
+        // -----------------------------
+        // YJS DOCUMENT
+        // -----------------------------
 
-  const shellThemeClass =
-    theme === "vs"
-      ? "light-shell"
-      : theme === "hc-black"
-        ? "contrast-shell"
-        : "dark-shell";
+        const ydoc =
+            new Y.Doc();
 
-  const handleEditorMount = (editor, monaco) => {
-    editorRef.current = editor;
+        const ytext =
+            ydoc.getText("code");
 
-    if (bindingRef.current) {
-      return;
-    }
+        ydocRef.current = ydoc;
+        ytextRef.current = ytext;
 
-    const model = editor.getModel();
+        // -----------------------------
+        // SOCKET
+        // -----------------------------
 
-    if (!model) {
-      console.error("Monaco model was not created.");
-      return;
-    }
+        const socket =
+            io(SOCKET_URL, {
+                transports: [
+                    "websocket",
+                    "polling",
+                ],
 
-    model.setEOL(monaco.editor.EndOfLineSequence.LF);
+                reconnection: true,
+            });
 
-    const updateDocumentStats = () => {
-      setDocumentStats({
-        lineCount: model.getLineCount(),
-        characterCount: model.getValueLength(),
-      });
+        socketRef.current =
+            socket;
+
+        // -----------------------------
+        // CONNECT
+        // -----------------------------
+
+        socket.on(
+            "connect",
+            () => {
+                console.log(
+                    "[SYNCSPACE] Connected:",
+                    socket.id
+                );
+
+                setConnected(true);
+
+                socket.emit(
+                    "join-room",
+                    {
+                        roomId:
+                            ROOM_ID,
+                    }
+                );
+            }
+        );
+
+        // -----------------------------
+        // DISCONNECT
+        // -----------------------------
+
+        socket.on(
+            "disconnect",
+            () => {
+                console.log(
+                    "[SYNCSPACE] Disconnected"
+                );
+
+                setConnected(false);
+                setActiveUsers(0);
+            }
+        );
+
+        // -----------------------------
+        // CONNECTION ERROR
+        // -----------------------------
+
+        socket.on(
+            "connect_error",
+            (error) => {
+                console.error(
+                    "[SYNCSPACE] Connection error:",
+                    error.message
+                );
+
+                setConnected(false);
+            }
+        );
+
+        // -----------------------------
+        // USER COUNT
+        // -----------------------------
+
+        socket.on(
+            "room-users",
+            (count) => {
+                setActiveUsers(
+                    Number(count) || 0
+                );
+            }
+        );
+
+        // -----------------------------
+        // INITIAL YJS STATE
+        // -----------------------------
+
+        socket.on(
+            "yjs-state",
+            (data) => {
+                try {
+                    if (!data) {
+                        return;
+                    }
+
+                    const rawUpdate =
+                        data.update;
+
+                    if (!rawUpdate) {
+                        return;
+                    }
+
+                    const update =
+                        rawUpdate instanceof
+                            Uint8Array
+                            ? rawUpdate
+                            : new Uint8Array(
+                                rawUpdate
+                            );
+
+                    remoteUpdateRef.current =
+                        true;
+
+                    Y.applyUpdate(
+                        ydoc,
+                        update,
+                        "remote"
+                    );
+
+                    remoteUpdateRef.current =
+                        false;
+
+                    const current =
+                        ytext.toString();
+
+                    // Only use server state
+                    // if it contains content.
+                    if (current.length > 0) {
+                        setCode(current);
+                    }
+
+                    // If server document is
+                    // empty, create initial code.
+                    if (
+                        current.length === 0
+                    ) {
+                        ytext.insert(
+                            0,
+                            INITIAL_CODE
+                        );
+
+                        setCode(
+                            INITIAL_CODE
+                        );
+                    }
+
+                } catch (error) {
+                    console.error(
+                        "[YJS] State error:",
+                        error
+                    );
+
+                    remoteUpdateRef.current =
+                        false;
+                }
+            }
+        );
+
+        // -----------------------------
+        // REMOTE YJS UPDATE
+        // -----------------------------
+
+        socket.on(
+            "yjs-update",
+            (data) => {
+                try {
+                    if (!data) {
+                        return;
+                    }
+
+                    const rawUpdate =
+                        data.update;
+
+                    if (!rawUpdate) {
+                        return;
+                    }
+
+                    const update =
+                        rawUpdate instanceof
+                            Uint8Array
+                            ? rawUpdate
+                            : new Uint8Array(
+                                rawUpdate
+                            );
+
+                    remoteUpdateRef.current =
+                        true;
+
+                    Y.applyUpdate(
+                        ydoc,
+                        update,
+                        "remote"
+                    );
+
+                    remoteUpdateRef.current =
+                        false;
+
+                    setCode(
+                        ytext.toString()
+                    );
+
+                } catch (error) {
+                    console.error(
+                        "[YJS] Remote update error:",
+                        error
+                    );
+
+                    remoteUpdateRef.current =
+                        false;
+                }
+            }
+        );
+
+        // -----------------------------
+        // LOCAL YJS UPDATE
+        // -----------------------------
+
+        const handleYjsUpdate =
+            (update, origin) => {
+
+                if (
+                    origin === "remote"
+                ) {
+                    return;
+                }
+
+                if (
+                    remoteUpdateRef.current
+                ) {
+                    return;
+                }
+
+                if (
+                    !socket.connected
+                ) {
+                    return;
+                }
+
+                socket.emit(
+                    "yjs-update",
+                    {
+                        roomId:
+                            ROOM_ID,
+
+                        update:
+                            Array.from(
+                                update
+                            ),
+                    }
+                );
+            };
+
+        ydoc.on(
+            "update",
+            handleYjsUpdate
+        );
+
+        // -----------------------------
+        // CLEANUP
+        // -----------------------------
+
+        return () => {
+            ydoc.off(
+                "update",
+                handleYjsUpdate
+            );
+
+            if (
+                socket.connected
+            ) {
+                socket.emit(
+                    "leave-room",
+                    {
+                        roomId:
+                            ROOM_ID,
+                    }
+                );
+            }
+
+            socket.disconnect();
+
+            ydoc.destroy();
+
+            socketRef.current =
+                null;
+
+            ydocRef.current =
+                null;
+
+            ytextRef.current =
+                null;
+        };
+    }, []);
+
+    // -----------------------------
+    // MONACO CHANGE
+    // -----------------------------
+
+    const handleEditorChange =
+        (value) => {
+
+            if (
+                value === undefined
+            ) {
+                return;
+            }
+
+            const ytext =
+                ytextRef.current;
+
+            if (!ytext) {
+                setCode(value);
+                return;
+            }
+
+            if (
+                remoteUpdateRef.current
+            ) {
+                setCode(value);
+                return;
+            }
+
+            const oldText =
+                ytext.toString();
+
+            if (
+                oldText === value
+            ) {
+                return;
+            }
+
+            // Find changed section
+            let start = 0;
+
+            while (
+                start <
+                    oldText.length &&
+                start <
+                    value.length &&
+                oldText[start] ===
+                    value[start]
+            ) {
+                start++;
+            }
+
+            let oldEnd =
+                oldText.length - 1;
+
+            let newEnd =
+                value.length - 1;
+
+            while (
+                oldEnd >= start &&
+                newEnd >= start &&
+                oldText[oldEnd] ===
+                    value[newEnd]
+            ) {
+                oldEnd--;
+                newEnd--;
+            }
+
+            const deleteCount =
+                oldEnd - start + 1;
+
+            const inserted =
+                value.slice(
+                    start,
+                    newEnd + 1
+                );
+
+            ytext.doc.transact(
+                () => {
+
+                    if (
+                        deleteCount > 0
+                    ) {
+                        ytext.delete(
+                            start,
+                            deleteCount
+                        );
+                    }
+
+                    if (
+                        inserted.length >
+                        0
+                    ) {
+                        ytext.insert(
+                            start,
+                            inserted
+                        );
+                    }
+                }
+            );
+
+            setCode(value);
+        };
+
+    // -----------------------------
+    // RESET
+    // -----------------------------
+
+    const resetCode = () => {
+        const ytext =
+            ytextRef.current;
+
+        if (!ytext) {
+            return;
+        }
+
+        ytext.doc.transact(
+            () => {
+
+                if (
+                    ytext.length > 0
+                ) {
+                    ytext.delete(
+                        0,
+                        ytext.length
+                    );
+                }
+
+                ytext.insert(
+                    0,
+                    INITIAL_CODE
+                );
+            }
+        );
+
+        setCode(
+            INITIAL_CODE
+        );
     };
 
-    const contentDisposable =
-      model.onDidChangeContent(updateDocumentStats);
+    // -----------------------------
+    // COPY
+    // -----------------------------
 
-    const cursorDisposable =
-      editor.onDidChangeCursorPosition((event) => {
-        setCursorPosition({
-          lineNumber: event.position.lineNumber,
-          column: event.position.column,
-        });
-      });
-
-    editorDisposablesRef.current = [
-      contentDisposable,
-      cursorDisposable,
-    ];
-
-    updateDocumentStats();
-
-    const initialPosition = editor.getPosition();
-
-    if (initialPosition) {
-      setCursorPosition({
-        lineNumber: initialPosition.lineNumber,
-        column: initialPosition.column,
-      });
-    }
-
-    const yDocument = new Y.Doc();
-
-    const provider = new WebsocketProvider(
-      "ws://localhost:1234",
-      ROOM_NAME,
-      yDocument
-    );
-
-    const sharedText = yDocument.getText("code");
-
-    provider.awareness.setLocalStateField("user", {
-      name: `User-${Math.floor(Math.random() * 900 + 100)}`,
-      color: `hsl(${Math.floor(Math.random() * 360)}, 75%, 55%)`,
-    });
-
-    const updateActiveUsers = () => {
-      const users = Array.from(
-        provider.awareness.getStates().entries()
-      ).map(([clientId, state]) => ({
-        clientId,
-        name: state.user?.name || `User-${clientId}`,
-        color: state.user?.color || "#94a3b8",
-      }));
-
-      setActiveUsers(users.length);
-      setActiveUserDetails(users);
+    const copyCode = async () => {
+        try {
+            await navigator.clipboard
+                .writeText(code);
+        } catch (error) {
+            console.error(
+                "Copy failed:",
+                error
+            );
+        }
     };
 
-    awarenessChangeHandlerRef.current = updateActiveUsers;
+    return (
+        <div className="sync-editor">
 
-    provider.awareness.on("change", updateActiveUsers);
-    updateActiveUsers();
+            <div className="editor-topbar">
 
-    provider.on("status", ({ status }) => {
-      setConnectionStatus(status);
-    });
+                <div className="editor-title-area">
 
-    provider.on("sync", (isSynced) => {
-      if (isSynced && sharedText.length === 0) {
-        sharedText.insert(0, STARTER_CODE);
-      }
-    });
+                    <div className="editor-logo">
+                        S
+                    </div>
 
-    const binding = new MonacoBinding(
-      sharedText,
-      model,
-      new Set([editor]),
-      provider.awareness
-    );
+                    <div>
+                        <h2>
+                            SyncSpace Editor
+                        </h2>
 
-    bindingRef.current = binding;
-    providerRef.current = provider;
-    documentRef.current = yDocument;
-  };
+                        <p>
+                            Real-time collaborative coding workspace
+                        </p>
+                    </div>
 
-  const handleResetEditor = () => {
-    if (readOnly) {
-      return;
-    }
+                </div>
 
-    const yDocument = documentRef.current;
+                <div className="editor-actions">
 
-    if (!yDocument) {
-      return;
-    }
+                    <div className="active-pill">
+                        {activeUsers} active
+                    </div>
 
-    const sharedText = yDocument.getText("code");
+                    <div
+                        className={
+                            connected
+                                ? "connection-pill online"
+                                : "connection-pill offline"
+                        }
+                    >
+                        <span className="connection-dot"></span>
 
-    yDocument.transact(() => {
-      sharedText.delete(0, sharedText.length);
-      sharedText.insert(0, STARTER_CODE);
-    });
-  };
+                        {connected
+                            ? "connected"
+                            : "offline"}
+                    </div>
 
-  const handleCopyCode = async () => {
-    const editor = editorRef.current;
+                    <button
+                        className="reset-button"
+                        onClick={resetCode}
+                        title="Reset code"
+                    >
+                        ↻
+                    </button>
 
-    if (!editor) {
-      setCopyFeedback("Copy failed");
-      return;
-    }
+                </div>
 
-    try {
-      await navigator.clipboard.writeText(editor.getValue());
-      setCopyFeedback("Copied!");
-    } catch (error) {
-      console.error("Unable to copy editor code:", error);
-      setCopyFeedback("Copy failed");
-    }
-
-    if (copyTimerRef.current) {
-      window.clearTimeout(copyTimerRef.current);
-    }
-
-    copyTimerRef.current = window.setTimeout(() => {
-      setCopyFeedback("");
-    }, 2000);
-  };
-
-  const handleDownloadCode = () => {
-    const editor = editorRef.current;
-
-    if (!editor) {
-      setDownloadFeedback("Failed");
-      return;
-    }
-
-    try {
-      const code = editor.getValue();
-      const safeFileName = sanitizeFileName(fileName);
-
-      const fileBlob = new Blob([code], {
-        type: "text/plain;charset=utf-8",
-      });
-
-      const downloadUrl = URL.createObjectURL(fileBlob);
-      const downloadLink = document.createElement("a");
-
-      downloadLink.href = downloadUrl;
-      downloadLink.download = safeFileName;
-
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-
-      window.setTimeout(() => {
-        URL.revokeObjectURL(downloadUrl);
-      }, 0);
-
-      setDownloadFeedback("Downloaded!");
-    } catch (error) {
-      console.error("Unable to download editor code:", error);
-      setDownloadFeedback("Failed");
-    }
-
-    if (downloadTimerRef.current) {
-      window.clearTimeout(downloadTimerRef.current);
-    }
-
-    downloadTimerRef.current = window.setTimeout(() => {
-      setDownloadFeedback("");
-    }, 2000);
-  };
-
-  const handleShareRoom = async () => {
-    const shareUrl = new URL(window.location.href);
-    shareUrl.searchParams.set("room", ROOM_NAME);
-
-    try {
-      await navigator.clipboard.writeText(shareUrl.toString());
-      setShareFeedback("Link copied!");
-    } catch (error) {
-      console.error("Unable to copy room link:", error);
-      setShareFeedback("Copy failed");
-    }
-
-    if (shareTimerRef.current) {
-      window.clearTimeout(shareTimerRef.current);
-    }
-
-    shareTimerRef.current = window.setTimeout(() => {
-      setShareFeedback("");
-    }, 2000);
-  };
-
-  const handleFindReplace = async () => {
-    const editor = editorRef.current;
-
-    if (!editor) {
-      return;
-    }
-
-    editor.focus();
-
-    const replaceAction = editor.getAction(
-      "editor.action.startFindReplaceAction"
-    );
-
-    if (replaceAction) {
-      await replaceAction.run();
-      return;
-    }
-
-    editor.trigger("toolbar", "actions.find", null);
-  };
-
-  useEffect(() => {
-    const handleEscapeKey = (event) => {
-      if (event.key === "Escape") {
-        setShowOptions(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleEscapeKey);
-
-    return () => {
-      window.removeEventListener("keydown", handleEscapeKey);
-
-      const provider = providerRef.current;
-      const awarenessHandler =
-        awarenessChangeHandlerRef.current;
-
-      if (provider && awarenessHandler) {
-        provider.awareness.off("change", awarenessHandler);
-      }
-
-      editorDisposablesRef.current.forEach((disposable) => {
-        disposable.dispose();
-      });
-
-      editorDisposablesRef.current = [];
-
-      if (copyTimerRef.current) {
-        window.clearTimeout(copyTimerRef.current);
-      }
-
-      if (shareTimerRef.current) {
-        window.clearTimeout(shareTimerRef.current);
-      }
-
-      if (downloadTimerRef.current) {
-        window.clearTimeout(downloadTimerRef.current);
-      }
-
-      bindingRef.current?.destroy();
-      providerRef.current?.destroy();
-      documentRef.current?.destroy();
-
-      bindingRef.current = null;
-      providerRef.current = null;
-      documentRef.current = null;
-      editorRef.current = null;
-      awarenessChangeHandlerRef.current = null;
-      copyTimerRef.current = null;
-      shareTimerRef.current = null;
-      downloadTimerRef.current = null;
-    };
-  }, []);
-
-  return (
-    <div
-      className={`code-editor-wrapper ${shellThemeClass}`}
-    >
-      <header className="workspace-header">
-        <div className="workspace-brand">
-          <div className="workspace-logo">S</div>
-
-          <div className="workspace-title-group">
-            <h1 className="workspace-title">
-              SyncSpace Editor
-            </h1>
-
-            <p className="workspace-subtitle">
-              Real-time collaborative coding workspace
-            </p>
-          </div>
-        </div>
-
-        <div className="workspace-header-status">
-          <span className="header-pill active-pill">
-            {activeUsers} active
-          </span>
-
-          <span
-            className={`header-pill connection-pill ${connectionStatus}`}
-          >
-            <span className="status-dot" />
-            {connectionStatus}
-          </span>
-
-          <button
-            type="button"
-            className="options-menu-button"
-            onClick={() => setShowOptions((current) => !current)}
-            aria-label="Open editor options"
-            aria-expanded={showOptions}
-            title="Editor options"
-          >
-            ⋮
-          </button>
-        </div>
-      </header>
-
-      <div className="file-tab-bar">
-        <span className="file-tab-icon" aria-hidden="true">
-          ▤
-        </span>
-
-        <span
-          className="file-tab-name"
-          title={fileName.trim() || "Untitled"}
-        >
-          {fileName.trim() || "Untitled"}
-        </span>
-
-        <span className="file-tab-language">
-          {language}
-        </span>
-      </div>
-
-      {showOptions && (
-        <section
-          className="editor-options-menu"
-          aria-label="Editor options"
-        >
-          <div className="options-menu-header">
-            <div>
-              <h2>Editor options</h2>
-              <p>Settings and file actions</p>
             </div>
 
-            <button
-              type="button"
-              className="options-close-button"
-              onClick={() => setShowOptions(false)}
-              aria-label="Close editor options"
-              title="Close options"
-            >
-              ×
-            </button>
-          </div>
+            <div className="editor-toolbar">
 
-          <div className="options-controls-grid">
-            <div className="toolbar-control">
-              <label htmlFor="language-select">Language</label>
+                <div className="file-info">
 
-              <select
-                id="language-select"
-                value={language}
-                onChange={(event) =>
-                  setLanguage(event.target.value)
-                }
-              >
-                <option value="javascript">JavaScript</option>
-                <option value="typescript">TypeScript</option>
-                <option value="python">Python</option>
-                <option value="java">Java</option>
-                <option value="cpp">C++</option>
-                <option value="html">HTML</option>
-                <option value="css">CSS</option>
-              </select>
+                    <span className="file-icon">
+                        JS
+                    </span>
+
+                    <span className="file-name">
+                        main.js
+                    </span>
+
+                </div>
+
+                <span className="language-label">
+                    JavaScript
+                </span>
+
             </div>
 
-            <div className="toolbar-control">
-              <label htmlFor="theme-select">Theme</label>
+            <div className="monaco-container">
 
-              <select
-                id="theme-select"
-                value={theme}
-                onChange={(event) =>
-                  setTheme(event.target.value)
-                }
-              >
-                <option value="vs-dark">Dark</option>
-                <option value="vs">Light</option>
-                <option value="hc-black">
-                  High Contrast
-                </option>
-              </select>
-            </div>
+                <Editor
+                    height="500px"
+                    language="javascript"
+                    theme="vs-dark"
+                    value={code}
+                    onChange={
+                        handleEditorChange
+                    }
+                    options={{
+                        automaticLayout:
+                            true,
 
-            <div className="toolbar-control">
-              <label htmlFor="font-size-select">Font</label>
+                        minimap: {
+                            enabled: true,
+                        },
 
-              <select
-                id="font-size-select"
-                value={fontSize}
-                onChange={(event) =>
-                  setFontSize(Number(event.target.value))
-                }
-              >
-                <option value={12}>12 px</option>
-                <option value={14}>14 px</option>
-                <option value={16}>16 px</option>
-                <option value={18}>18 px</option>
-                <option value={20}>20 px</option>
-                <option value={24}>24 px</option>
-              </select>
-            </div>
+                        fontSize: 15,
 
-            <div className="toolbar-control">
-              <label htmlFor="tab-size-select">Tab size</label>
+                        lineHeight: 24,
 
-              <select
-                id="tab-size-select"
-                value={tabSize}
-                onChange={(event) =>
-                  setTabSize(Number(event.target.value))
-                }
-              >
-                <option value={2}>2 spaces</option>
-                <option value={4}>4 spaces</option>
-                <option value={6}>6 spaces</option>
-                <option value={8}>8 spaces</option>
-              </select>
-            </div>
+                        tabSize: 4,
 
-            <div className="toolbar-control">
-              <label htmlFor="line-numbers-select">
-                Line numbers
-              </label>
+                        insertSpaces: true,
 
-              <select
-                id="line-numbers-select"
-                value={showLineNumbers ? "show" : "hide"}
-                onChange={(event) =>
-                  setShowLineNumbers(
-                    event.target.value === "show"
-                  )
-                }
-              >
-                <option value="show">Show</option>
-                <option value="hide">Hide</option>
-              </select>
-            </div>
+                        wordWrap:
+                            "on",
 
-            <div className="toolbar-control">
-              <label htmlFor="word-wrap-select">
-                Word wrap
-              </label>
+                        scrollBeyondLastLine:
+                            false,
 
-              <select
-                id="word-wrap-select"
-                value={wordWrap ? "on" : "off"}
-                onChange={(event) =>
-                  setWordWrap(event.target.value === "on")
-                }
-              >
-                <option value="off">Off</option>
-                <option value="on">On</option>
-              </select>
-            </div>
+                        smoothScrolling:
+                            true,
 
-            <div className="toolbar-control">
-              <label htmlFor="minimap-select">Minimap</label>
+                        cursorBlinking:
+                            "smooth",
 
-              <select
-                id="minimap-select"
-                value={showMinimap ? "show" : "hide"}
-                onChange={(event) =>
-                  setShowMinimap(
-                    event.target.value === "show"
-                  )
-                }
-              >
-                <option value="show">Show</option>
-                <option value="hide">Hide</option>
-              </select>
-            </div>
+                        folding: true,
 
-            <div className="toolbar-control">
-              <label htmlFor="read-only-select">Mode</label>
+                        bracketPairColorization:
+                        {
+                            enabled: true,
+                        },
 
-              <select
-                id="read-only-select"
-                value={readOnly ? "readonly" : "editable"}
-                onChange={(event) =>
-                  setReadOnly(
-                    event.target.value === "readonly"
-                  )
-                }
-              >
-                <option value="editable">Editable</option>
-                <option value="readonly">Read only</option>
-              </select>
-            </div>
-
-            <div className="toolbar-control file-control">
-              <label htmlFor="file-name-input">File name</label>
-
-              <input
-                id="file-name-input"
-                type="text"
-                value={fileName}
-                onChange={(event) =>
-                  setFileName(event.target.value)
-                }
-                placeholder="main.js"
-              />
-            </div>
-          </div>
-
-          <div className="options-actions-grid">
-            <button
-              type="button"
-              className="editor-action-button"
-              onClick={handleFindReplace}
-              title="Open Find and Replace"
-            >
-              <span className="button-icon">⌕</span>
-              Find
-            </button>
-
-            <button
-              type="button"
-              className="editor-action-button"
-              onClick={handleCopyCode}
-              title="Copy editor code"
-            >
-              <span className="button-icon">⧉</span>
-              {copyFeedback || "Copy"}
-            </button>
-
-            <button
-              type="button"
-              className="editor-action-button"
-              onClick={handleDownloadCode}
-              title="Download editor code"
-            >
-              <span className="button-icon">⇩</span>
-              {downloadFeedback || "Download"}
-            </button>
-
-            <button
-              type="button"
-              className="editor-action-button"
-              onClick={handleResetEditor}
-              disabled={readOnly}
-              title="Reset editor code"
-            >
-              <span className="button-icon">↺</span>
-              Reset
-            </button>
-
-            <button
-              type="button"
-              className="editor-action-button primary-action"
-              onClick={handleShareRoom}
-              title="Copy collaborative room link"
-            >
-              <span className="button-icon">↗</span>
-              {shareFeedback || "Share room"}
-            </button>
-          </div>
-        </section>
-      )}
-
-      <div className="presence-strip">
-        <span className="presence-label">
-          Collaborators
-        </span>
-
-        {activeUserDetails.length > 0 ? (
-          <div className="active-user-presence">
-            {activeUserDetails.map((user) => (
-              <span
-                key={user.clientId}
-                className="active-user-chip"
-                title={`${user.name} is active`}
-              >
-                <span
-                  className="active-user-dot"
-                  style={{
-                    "--user-color": user.color,
-                  }}
+                        padding: {
+                            top: 16,
+                            bottom: 16,
+                        },
+                    }}
                 />
 
-                {user.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="no-collaborators">
-            Waiting for collaborators…
-          </span>
-        )}
-      </div>
+            </div>
 
-      <div className="editor-container">
-        <Editor
-          height="100%"
-          path="file:///syncspace/main.js"
-          language={language}
-          defaultValue=""
-          theme={theme}
-          onMount={handleEditorMount}
-          options={{
-            fontSize,
-            lineNumbers: showLineNumbers ? "on" : "off",
-            wordWrap: wordWrap ? "on" : "off",
-            readOnly,
-            automaticLayout: true,
-            minimap: {
-              enabled: showMinimap,
-            },
-            scrollBeyondLastLine: false,
-            tabSize,
-            insertSpaces: true,
+            <div className="editor-statusbar">
 
-            // Keep IntelliSense, autocomplete, hover and parameter hints visible.
-            fixedOverflowWidgets: true,
-            quickSuggestions: {
-              other: true,
-              comments: false,
-              strings: true,
-            },
-            suggestOnTriggerCharacters: true,
-            acceptSuggestionOnEnter: "on",
-            tabCompletion: "on",
-            wordBasedSuggestions: "currentDocument",
-            parameterHints: {
-              enabled: true,
-            },
-            hover: {
-              enabled: true,
-              delay: 300,
-            },
-            snippetSuggestions: "top",
-            suggest: {
-              showWords: true,
-              showSnippets: true,
-              showFunctions: true,
-              showMethods: true,
-              showVariables: true,
-              showClasses: true,
-              showKeywords: true,
-            },
-            renderLineHighlight: "all",
-            smoothScrolling: true,
-            cursorBlinking: "smooth",
+                <div className="status-left">
 
-            padding: {
-              top: 14,
-            },
-          }}
-        />
-      </div>
+                    <span>
+                        main.js
+                    </span>
 
-      <footer className="editor-status-bar">
-        <span className="status-file-name">
-          {fileName.trim() || "Untitled"}
-        </span>
+                    <span>
+                        JavaScript
+                    </span>
 
-        <div className="status-items">
-          <span>
-            Ln {cursorPosition.lineNumber}, Col{" "}
-            {cursorPosition.column}
-          </span>
+                    <span>
+                        UTF-8
+                    </span>
 
-          <span>Lines: {documentStats.lineCount}</span>
+                </div>
 
-          <span>
-            Characters: {documentStats.characterCount}
-          </span>
+                <button
+                    className="copy-button"
+                    onClick={copyCode}
+                >
+                    Copy
+                </button>
 
-          <span>{language}</span>
+            </div>
 
-          <span className="status-room">
-            Room: {ROOM_NAME}
-          </span>
         </div>
-      </footer>
-    </div>
-  );
+    );
 }
 
 export default CodeEditor;
